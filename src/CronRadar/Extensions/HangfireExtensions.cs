@@ -40,7 +40,7 @@ namespace CronRadar.Extensions
         /// <param name="cronExpression">The cron expression for scheduling.</param>
         /// <param name="name">Optional display name for the monitor.</param>
         public static void AddOrUpdateWithMonitoring(
-            this dynamic recurringJobManager,
+            this object recurringJobManager,
             ICronRadarClient cronRadar,
             string monitorKey,
             Expression<Action> methodCall,
@@ -79,7 +79,7 @@ namespace CronRadar.Extensions
         /// <param name="cronExpression">The cron expression for scheduling.</param>
         /// <param name="name">Optional display name for the monitor.</param>
         public static void AddOrUpdateWithMonitoring(
-            this dynamic recurringJobManager,
+            this object recurringJobManager,
             ICronRadarClient cronRadar,
             string monitorKey,
             Expression<Func<Task>> methodCall,
