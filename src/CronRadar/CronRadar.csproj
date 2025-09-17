@@ -9,7 +9,7 @@
 
     <!-- Package Information -->
     <PackageId>CronRadar</PackageId>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
     <Authors>CronRadar</Authors>
     <Company>CronRadar</Company>
     <Product>CronRadar .NET SDK</Product>
@@ -22,11 +22,11 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>
-v1.0.3 - Fixed Hangfire Integration
-• FIXED: Proper IServerFilter implementation
-• FIXED: .UseCronRadar() extension method
-• Added Hangfire.Core dependency
-• Enhanced fail-safe operation
+v1.0.4 - Auto-Discovery for Hangfire Jobs
+• NEW: Automatic discovery of ALL Hangfire recurring jobs
+• NEW: Syncs monitors on startup (no manual config needed)
+• IMPROVED: Works with ANY Hangfire application
+• FIXED: Monitors now created immediately on deployment
     </PackageReleaseNotes>
 
     <!-- Build Configuration -->
