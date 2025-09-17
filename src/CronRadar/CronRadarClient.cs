@@ -43,12 +43,22 @@ namespace CronRadar
         public CronRadarClient(HttpClient httpClient, string? apiKey = null, CronRadarOptions? options = null)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-            _apiKey = apiKey ?? Environment.GetEnvironmentVariable("CRONRADAR_API_KEY");
+
+            // Try to get API key from multiple sources
+            _apiKey = apiKey
+                ?? options?.ApiKey
+                ?? Environment.GetEnvironmentVariable("CRONRADAR_API_KEY")
+                ?? Environment.GetEnvironmentVariable("CronRadar__ApiKey"); // Support .NET config pattern
+
             _logger = options?.Logger;
             _failSilently = options?.FailSilently ?? true;
 
-            // Configure HttpClient
-            var baseUrl = options?.BaseUrl ?? "https://cronradar.com";
+            // Configure HttpClient with proper defaults
+            var baseUrl = options?.BaseUrl
+                ?? Environment.GetEnvironmentVariable("CRONRADAR_BASE_URL")
+                ?? Environment.GetEnvironmentVariable("CronRadar__BaseUrl") // Support .NET config pattern
+                ?? "https://cronradar.com";
+
             _httpClient.BaseAddress = new Uri(baseUrl);
             _httpClient.Timeout = options?.Timeout ?? TimeSpan.FromSeconds(5);
 
