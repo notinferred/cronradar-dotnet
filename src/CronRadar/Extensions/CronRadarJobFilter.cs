@@ -2,11 +2,15 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using Hangfire;
 using Hangfire.Server;
 using Hangfire.Common;
 using Hangfire.States;
+using Hangfire.Storage;
+using Hangfire.Storage.Monitoring;
 
 namespace CronRadar.Extensions
 {
@@ -141,6 +145,8 @@ namespace CronRadar.Extensions
     public static class CronRadarHangfireExtensions
     {
         private static ICronRadarClient? _client;
+        private static System.Threading.Timer? _syncTimer;
+        private static IGlobalConfiguration? _configuration;
 
         /// <summary>
         /// Enables CronRadar monitoring for all Hangfire jobs.
@@ -152,11 +158,31 @@ namespace CronRadar.Extensions
             {
                 if (configuration == null) return configuration;
 
+                // Store configuration for later use
+                _configuration = configuration;
+
                 // Initialize client (auto-discovers API key from env/config)
                 _client = client ?? new CronRadarClient();
 
                 // Add job filter for runtime monitoring
                 GlobalJobFilters.Filters.Add(new CronRadarJobFilter(_client));
+
+                // Start multiple sync attempts with increasing delays
+                Task.Run(async () =>
+                {
+                    // Try multiple times with increasing delays to ensure JobStorage is ready
+                    var delays = new[] { 1000, 3000, 5000, 10000, 30000 }; // 1s, 3s, 5s, 10s, 30s
+
+                    foreach (var delay in delays)
+                    {
+                        await Task.Delay(delay);
+
+                        if (TrySyncAllRecurringJobs())
+                        {
+                            break;
+                        }
+                    }
+                });
 
                 return configuration;
             }
@@ -168,58 +194,63 @@ namespace CronRadar.Extensions
         }
 
         /// <summary>
-        /// Extension for IRecurringJobManager to make job registration sync monitors automatically
+        /// Tries to sync all recurring jobs with CronRadar
         /// </summary>
-        public static void AddOrUpdate<T>(
-            this IRecurringJobManager manager,
-            string recurringJobId,
-            System.Linq.Expressions.Expression<Func<T, System.Threading.Tasks.Task>> methodCall,
-            string cronExpression)
+        private static bool TrySyncAllRecurringJobs()
         {
-            // Add to Hangfire
-            manager.AddOrUpdate(recurringJobId, methodCall, cronExpression);
+            if (_client == null || JobStorage.Current == null) return false;
 
-            // Sync with CronRadar if initialized
-            if (_client != null)
+            try
             {
-                try
+                var monitors = new List<Monitor>();
+
+                using (var connection = JobStorage.Current.GetConnection())
                 {
-                    var monitor = new Monitor(recurringJobId, cronExpression, typeof(T).Name);
-                    _client.Sync(new[] { monitor });
+                    // Get all recurring job IDs
+                    var recurringJobIds = connection.GetAllItemsFromSet("recurring-jobs");
+
+                    foreach (var jobId in recurringJobIds ?? new HashSet<string>())
+                    {
+                        if (!string.IsNullOrEmpty(jobId))
+                        {
+                            var jobData = connection.GetAllEntriesFromHash($"recurring-job:{jobId}");
+                            if (jobData != null && jobData.ContainsKey("Cron"))
+                            {
+                                monitors.Add(new Monitor(
+                                    jobId,
+                                    jobData["Cron"] ?? "* * * * *",
+                                    jobData.ContainsKey("Job") ? "Job" : jobId
+                                ));
+                            }
+                        }
+                    }
                 }
-                catch
+
+                if (monitors.Count > 0)
                 {
-                    // Never break
+                    Console.WriteLine($"CronRadar: Attempting to sync {monitors.Count} monitors:");
+                    foreach (var monitor in monitors)
+                    {
+                        Console.WriteLine($"  - Key: {monitor.Key}, Cron: {monitor.Schedule}, Name: {monitor.Name}");
+                    }
+
+                    _client.Sync(monitors);
+                    Console.WriteLine("CronRadar: Sync call completed");
+                    return true;
                 }
+                else
+                {
+                    Console.WriteLine("CronRadar: No monitors found to sync");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"CronRadar: Failed to sync monitors - {ex.Message}");
+                return false;
             }
         }
 
-        /// <summary>
-        /// Extension for IRecurringJobManager to make job registration sync monitors automatically
-        /// </summary>
-        public static void AddOrUpdate<T>(
-            this IRecurringJobManager manager,
-            string recurringJobId,
-            System.Linq.Expressions.Expression<Action<T>> methodCall,
-            string cronExpression)
-        {
-            // Add to Hangfire
-            manager.AddOrUpdate(recurringJobId, methodCall, cronExpression);
-
-            // Sync with CronRadar if initialized
-            if (_client != null)
-            {
-                try
-                {
-                    var monitor = new Monitor(recurringJobId, cronExpression, typeof(T).Name);
-                    _client.Sync(new[] { monitor });
-                }
-                catch
-                {
-                    // Never break
-                }
-            }
-        }
     }
 }
 #endif

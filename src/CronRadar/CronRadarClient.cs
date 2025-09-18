@@ -135,10 +135,13 @@ namespace CronRadar
                 if (response.IsSuccessStatusCode)
                 {
                     _logger?.LogInformation("Successfully synced {Count} monitors", monitorsList.Count);
+                    Console.WriteLine($"CronRadar API: Successfully synced {monitorsList.Count} monitors");
                     return true;
                 }
 
-                _logger?.LogWarning("Monitor sync failed with status {StatusCode}", response.StatusCode);
+                var responseBody = await response.Content.ReadAsStringAsync();
+                _logger?.LogWarning("Monitor sync failed with status {StatusCode}: {Response}", response.StatusCode, responseBody);
+                Console.WriteLine($"CronRadar API: Sync failed with status {response.StatusCode}: {responseBody}");
                 return false;
             }
             catch (Exception ex)
