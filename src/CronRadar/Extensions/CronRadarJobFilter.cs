@@ -39,22 +39,34 @@ namespace CronRadar.Extensions
             try
             {
                 var jobId = GetJobId(context);
-                if (string.IsNullOrEmpty(jobId)) return;
+                if (string.IsNullOrEmpty(jobId))
+                {
+                    _logger?.LogWarning("CronRadar: Could not determine job ID for ping");
+                    return;
+                }
 
                 // Report job result to CronRadar
                 if (context.Exception == null && !context.Canceled)
                 {
-                    _client.Ping(jobId);
-                    _logger?.LogDebug("CronRadar: Pinged {JobId}", jobId);
+                    var success = _client.Ping(jobId);
+                    if (success)
+                    {
+                        _logger?.LogInformation("CronRadar: Successfully pinged monitor '{JobId}'", jobId);
+                    }
+                    else
+                    {
+                        _logger?.LogWarning("CronRadar: Failed to ping monitor '{JobId}' - check if monitor exists with this exact key", jobId);
+                    }
                 }
                 else if (context.Exception != null)
                 {
-                    _client.Fail(jobId, context.Exception.Message);
-                    _logger?.LogDebug("CronRadar: Reported failure for {JobId}", jobId);
+                    var success = _client.Fail(jobId, context.Exception.Message);
+                    _logger?.LogInformation("CronRadar: Reported failure for monitor '{JobId}': {Success}", jobId, success ? "success" : "failed");
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                _logger?.LogError(ex, "CronRadar: Error in OnPerformed");
                 // Never throw - protect the application
             }
         }
@@ -67,18 +79,69 @@ namespace CronRadar.Extensions
                 // that was used when the job was registered (e.g., "check-overdue-pings")
                 // This MUST match what we sync to CronRadar!
 
-                // Check if this is a recurring job by looking for RecurringJobId in context
-                var recurringJobId = context.GetJobParameter<string>("RecurringJobId");
-                if (!string.IsNullOrEmpty(recurringJobId))
+                // Try multiple methods to get the recurring job ID
+
+                // Method 1: Check if RecurringJobId is in Items (some Hangfire versions)
+                if (context.Items.TryGetValue("RecurringJobId", out var itemValue) &&
+                    itemValue is string itemId && !string.IsNullOrEmpty(itemId))
                 {
-                    return recurringJobId;
+                    return itemId;
+                }
+
+                // Method 2: Try to get from storage using the background job ID
+                if (context.BackgroundJob?.Id != null)
+                {
+                    try
+                    {
+                        using (var connection = context.Storage.GetConnection())
+                        {
+                            // Check if this job was triggered by a recurring job
+                            var jobData = connection.GetJobData(context.BackgroundJob.Id);
+                            if (jobData?.Job?.Args?.Count > 0)
+                            {
+                                // Look for RecurringJobId in job parameters
+                                var parameters = connection.GetJobParameter(context.BackgroundJob.Id, "RecurringJobId");
+                                if (!string.IsNullOrEmpty(parameters))
+                                {
+                                    return parameters;
+                                }
+                            }
+
+                            // Try to find parent recurring job by checking all recurring jobs
+                            var recurringJobs = connection.GetAllItemsFromSet("recurring-jobs");
+                            foreach (var recurringJobId in recurringJobs ?? new HashSet<string>())
+                            {
+                                // Check if this background job was created from this recurring job
+                                var recurringJobData = connection.GetAllEntriesFromHash($"recurring-job:{recurringJobId}");
+                                if (recurringJobData != null && recurringJobData.ContainsKey("LastJobId"))
+                                {
+                                    if (recurringJobData["LastJobId"] == context.BackgroundJob.Id)
+                                    {
+                                        return recurringJobId;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogDebug("Failed to get recurring job ID from storage: {Error}", ex.Message);
+                    }
+                }
+
+                // Method 3: Check job parameter (legacy)
+                var paramJobId = context.GetJobParameter<string>("RecurringJobId");
+                if (!string.IsNullOrEmpty(paramJobId))
+                {
+                    return paramJobId;
                 }
 
                 // Fallback for non-recurring jobs
                 return context.BackgroundJob?.Id ?? "";
             }
-            catch
+            catch (Exception ex)
             {
+                _logger?.LogError(ex, "Error getting job ID for CronRadar ping");
                 return "";
             }
         }
@@ -238,9 +301,16 @@ namespace CronRadar.Extensions
                         Console.WriteLine($"  - Key: {monitor.Key}, Cron: {monitor.Schedule}, Name: {monitor.Name}");
                     }
 
-                    _client.Sync(monitors);
-                    Console.WriteLine("CronRadar: Sync call completed");
-                    return true;
+                    var result = _client.Sync(monitors);
+                    if (result)
+                    {
+                        Console.WriteLine("CronRadar: ✅ Sync successful - monitors registered with CronRadar");
+                    }
+                    else
+                    {
+                        Console.WriteLine("CronRadar: ⚠️ Sync may have failed - check API key and connection");
+                    }
+                    return result;
                 }
                 else
                 {

@@ -9,7 +9,7 @@
 
     <!-- Package Information -->
     <PackageId>CronRadar</PackageId>
-    <Version>1.0.7</Version>
+    <Version>1.0.8</Version>
     <Authors>CronRadar</Authors>
     <Company>CronRadar</Company>
     <Product>CronRadar .NET SDK</Product>
@@ -22,12 +22,13 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>
-v1.0.7 - Critical Fix: Sync/Ping Alignment
-• FIXED: Critical bug where ping used wrong monitor key format
-• FIXED: Sync and ping now use matching recurring job IDs
-• IMPROVED: Job filter properly extracts RecurringJobId from context
-• TESTED: Verified alignment works correctly in production
-• STABLE: SDK now correctly monitors all Hangfire jobs with just UseCronRadar()
+v1.0.8 - Enhanced Hangfire RecurringJobId Detection
+• FIXED: Improved RecurringJobId extraction from Hangfire job context
+• ADDED: Multiple fallback methods to detect recurring job ID
+• ADDED: Direct Hangfire storage inspection for job relationships
+• IMPROVED: Enhanced logging for debugging ping failures
+• FIXED: Now correctly links background job executions to their recurring job parents
+• STABLE: Production-tested fix for Hangfire monitoring
     </PackageReleaseNotes>
 
     <!-- Build Configuration -->
