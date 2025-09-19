@@ -150,6 +150,49 @@ public class BackupService
 }
 ```
 
+## Auto-Registration (Self-Healing Monitors) 🔄
+
+The SDK now includes intelligent auto-registration that ensures your monitors are always active, even if:
+- The initial sync failed
+- A monitor was accidentally deleted
+- Your application restarted without syncing
+
+### How It Works
+
+When a ping fails because a monitor doesn't exist, the SDK automatically:
+1. Detects the missing monitor (404 response)
+2. Uses cached configuration to auto-create the monitor
+3. Retries the ping successfully
+
+```csharp
+// Define and sync monitors on startup
+var monitors = new[]
+{
+    new Monitor("daily-backup", "0 2 * * *") { GracePeriod = 300 }
+};
+await cronRadar.SyncAsync(monitors);
+
+// Later, even if the monitor was deleted...
+await cronRadar.PingAsync("daily-backup");
+// ✅ SDK auto-creates the monitor and pings successfully!
+```
+
+### Manual Auto-Registration
+
+You can also explicitly provide schedule and grace period during pings:
+
+```csharp
+// Ping with auto-registration parameters
+await cronRadar.PingAsync(
+    "hourly-sync",
+    schedule: "0 * * * *",
+    gracePeriod: 180
+);
+// Creates monitor if it doesn't exist, then pings
+```
+
+This feature makes your monitoring resilient and self-healing - monitors can recover automatically from any failure scenario.
+
 ## Hangfire Integration
 
 ### Automatic Monitoring (NEW!) - Just ONE Line! 🚀

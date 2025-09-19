@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -22,6 +23,7 @@ namespace CronRadar
         private readonly string? _apiKey;
         private readonly bool _failSilently;
         private readonly JsonSerializerOptions _jsonOptions;
+        private readonly Dictionary<string, Monitor> _monitorCache = new();
         private bool _disposed;
 
         /// <summary>
@@ -134,6 +136,12 @@ namespace CronRadar
 
                 if (response.IsSuccessStatusCode)
                 {
+                    // Cache monitors for auto-registration during pings
+                    foreach (var monitor in monitorsList)
+                    {
+                        _monitorCache[monitor.Key] = monitor;
+                    }
+
                     _logger?.LogInformation("Successfully synced {Count} monitors", monitorsList.Count);
                     Console.WriteLine($"CronRadar API: Successfully synced {monitorsList.Count} monitors");
                     return true;
@@ -191,6 +199,86 @@ namespace CronRadar
                 if (response.IsSuccessStatusCode)
                 {
                     _logger?.LogDebug("Successfully pinged monitor '{MonitorKey}'", monitorKey);
+                    return true;
+                }
+
+                // Auto-registration: If monitor not found and we have it cached, try to create it
+                if (response.StatusCode == HttpStatusCode.NotFound && _monitorCache.TryGetValue(monitorKey, out var cachedMonitor))
+                {
+                    _logger?.LogInformation("Monitor '{MonitorKey}' not found, attempting auto-registration", monitorKey);
+
+                    // Build URL with schedule and grace period parameters
+                    var url = $"/ping/{Uri.EscapeDataString(monitorKey)}";
+                    var parameters = new List<string>();
+
+                    if (!string.IsNullOrEmpty(cachedMonitor.Schedule))
+                        parameters.Add($"schedule={Uri.EscapeDataString(cachedMonitor.Schedule)}");
+
+                    if (cachedMonitor.GracePeriod.HasValue)
+                        parameters.Add($"gracePeriod={cachedMonitor.GracePeriod.Value}");
+
+                    if (parameters.Any())
+                        url += "?" + string.Join("&", parameters);
+
+                    // Retry ping with auto-registration parameters
+                    response = await _httpClient.GetAsync(url, cancellationToken);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        _logger?.LogInformation("Successfully auto-registered and pinged monitor '{MonitorKey}'", monitorKey);
+                        return true;
+                    }
+                }
+
+                _logger?.LogWarning("Ping failed for monitor '{MonitorKey}' with status {StatusCode}",
+                    monitorKey, response.StatusCode);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                return HandleException(ex, $"Failed to ping monitor '{monitorKey}'");
+            }
+        }
+
+        /// <summary>
+        /// Asynchronously sends a ping for a monitor with optional auto-registration.
+        /// </summary>
+        /// <param name="monitorKey">The monitor key to ping.</param>
+        /// <param name="schedule">Optional cron schedule for auto-registration.</param>
+        /// <param name="gracePeriod">Optional grace period in seconds for auto-registration.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>True if ping was successful, false otherwise.</returns>
+        public async Task<bool> PingAsync(string monitorKey, string? schedule, int? gracePeriod, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (!ValidateApiKey())
+                    return false;
+
+                if (string.IsNullOrWhiteSpace(monitorKey))
+                {
+                    _logger?.LogWarning("Monitor key is required for ping");
+                    return false;
+                }
+
+                // Build URL with optional parameters for auto-registration
+                var url = $"/ping/{Uri.EscapeDataString(monitorKey)}";
+                var parameters = new List<string>();
+
+                if (!string.IsNullOrEmpty(schedule))
+                    parameters.Add($"schedule={Uri.EscapeDataString(schedule)}");
+
+                if (gracePeriod.HasValue)
+                    parameters.Add($"gracePeriod={gracePeriod.Value}");
+
+                if (parameters.Any())
+                    url += "?" + string.Join("&", parameters);
+
+                var response = await _httpClient.GetAsync(url, cancellationToken);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger?.LogDebug("Successfully pinged monitor '{MonitorKey}' with auto-registration", monitorKey);
                     return true;
                 }
 

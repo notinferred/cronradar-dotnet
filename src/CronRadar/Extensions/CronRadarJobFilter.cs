@@ -22,6 +22,7 @@ namespace CronRadar.Extensions
         private readonly ICronRadarClient _client;
         private readonly ILogger? _logger;
         private readonly ConcurrentDictionary<string, bool> _syncedJobs = new();
+        private readonly ConcurrentDictionary<string, string> _jobSchedules = new();
 
         public CronRadarJobFilter(ICronRadarClient? client = null, ILogger? logger = null)
         {
@@ -48,6 +49,23 @@ namespace CronRadar.Extensions
                 // Report job result to CronRadar
                 if (context.Exception == null && !context.Canceled)
                 {
+                    // Get the schedule if we have it cached for auto-registration
+                    string? schedule = null;
+                    if (_jobSchedules.TryGetValue(jobId, out var cachedSchedule))
+                    {
+                        schedule = cachedSchedule;
+                    }
+                    else
+                    {
+                        // Try to get schedule from Hangfire storage for recurring jobs
+                        schedule = TryGetRecurringJobSchedule(context, jobId);
+                        if (!string.IsNullOrEmpty(schedule))
+                        {
+                            _jobSchedules[jobId] = schedule;
+                        }
+                    }
+
+                    // Ping with schedule for auto-registration if needed
                     var success = _client.Ping(jobId);
                     if (success)
                     {
@@ -145,6 +163,30 @@ namespace CronRadar.Extensions
                 return "";
             }
         }
+
+        private string? TryGetRecurringJobSchedule(PerformContext context, string jobId)
+        {
+            try
+            {
+                if (context.Storage == null) return null;
+
+                using (var connection = context.Storage.GetConnection())
+                {
+                    // Try to get the cron expression from recurring job data
+                    var recurringJobData = connection.GetAllEntriesFromHash($"recurring-job:{jobId}");
+                    if (recurringJobData != null && recurringJobData.ContainsKey("Cron"))
+                    {
+                        return recurringJobData["Cron"];
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug("Could not retrieve schedule for job {JobId}: {Error}", jobId, ex.Message);
+            }
+
+            return null;
+        }
     }
 
     /// <summary>
@@ -155,6 +197,7 @@ namespace CronRadar.Extensions
         private readonly IRecurringJobManager _inner;
         private readonly ICronRadarClient _client;
         private readonly ILogger? _logger;
+        private readonly ConcurrentDictionary<string, string> _jobSchedules = new();
 
         public MonitoredRecurringJobManager(IRecurringJobManager inner, ICronRadarClient? client = null, ILogger? logger = null)
         {
@@ -195,6 +238,9 @@ namespace CronRadar.Extensions
         {
             try
             {
+                // Cache the schedule for later use
+                _jobSchedules[jobId] = cronExpression;
+
                 var monitor = new Monitor(jobId, cronExpression, jobName);
                 _client.Sync(new[] { monitor });
                 _logger?.LogDebug("CronRadar: Synced monitor {JobId} with cron {Cron}", jobId, cronExpression);
