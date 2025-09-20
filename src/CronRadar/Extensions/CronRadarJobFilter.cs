@@ -7,6 +7,7 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using Hangfire;
 using Hangfire.Server;
+using Hangfire.Client;
 using Hangfire.Common;
 using Hangfire.States;
 using Hangfire.Storage;
@@ -17,7 +18,7 @@ namespace CronRadar.Extensions
     /// <summary>
     /// Simple Hangfire job filter that monitors job execution with CronRadar.
     /// </summary>
-    public class CronRadarJobFilter : JobFilterAttribute, IServerFilter
+    public class CronRadarJobFilter : JobFilterAttribute, IServerFilter, IClientFilter, IElectStateFilter
     {
         private readonly ICronRadarClient _client;
         private readonly ILogger? _logger;
@@ -89,6 +90,106 @@ namespace CronRadar.Extensions
             }
         }
 
+        // IClientFilter implementation to capture RecurringJobId during job creation
+        public void OnCreating(CreatingContext context)
+        {
+            try
+            {
+                // When a recurring job creates a background job, capture the RecurringJobId
+                if (context.Parameters.TryGetValue("RecurringJobId", out var recurringJobId) &&
+                    recurringJobId is string jobId && !string.IsNullOrEmpty(jobId))
+                {
+                    // Store it as a job parameter for later retrieval
+                    context.SetJobParameter("CronRadar_RecurringJobId", jobId);
+                    _logger?.LogDebug("CronRadar: Captured RecurringJobId during job creation: {JobId}", jobId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug("CronRadar: Failed to capture RecurringJobId during job creation: {Error}", ex.Message);
+            }
+        }
+
+        public void OnCreated(CreatedContext context)
+        {
+            // Not needed for our use case
+        }
+
+        // IElectStateFilter implementation to capture RecurringJobId during state election
+        public void OnStateElection(ElectStateContext context)
+        {
+            try
+            {
+                // Another opportunity to capture RecurringJobId when transitioning to Enqueued state
+                if (context.CandidateState?.Name == "Enqueued" &&
+                    context.BackgroundJob?.Job != null)
+                {
+                    // Check if job was created by recurring job manager
+                    using var connection = context.Storage.GetConnection();
+                    if (connection != null)
+                    {
+                        // Try to find the recurring job that created this background job
+                        var recurringJobs = connection.GetAllItemsFromSet("recurring-jobs");
+                        foreach (var recurringJobId in recurringJobs ?? new HashSet<string>())
+                        {
+                            var recurringJobData = connection.GetAllEntriesFromHash($"recurring-job:{recurringJobId}");
+                            if (recurringJobData != null &&
+                                recurringJobData.TryGetValue("Job", out var jobData) &&
+                                !string.IsNullOrEmpty(jobData))
+                            {
+                                // Check if the job signatures match
+                                if (JobsMatch(context.BackgroundJob.Job, jobData))
+                                {
+                                    // Store the recurring job ID
+                                    context.SetJobParameter("CronRadar_RecurringJobId", recurringJobId);
+                                    _logger?.LogDebug("CronRadar: Captured RecurringJobId during state election: {JobId}", recurringJobId);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug("CronRadar: Failed to capture RecurringJobId during state election: {Error}", ex.Message);
+            }
+        }
+
+        public void OnStateApplied(ApplyStateContext context, IWriteOnlyTransaction transaction)
+        {
+            // Not needed
+        }
+
+        public void OnStateUnapplied(ApplyStateContext context, IWriteOnlyTransaction transaction)
+        {
+            // Not needed
+        }
+
+        // Helper method to check if job signatures match
+        private bool JobsMatch(Job backgroundJob, string recurringJobData)
+        {
+            try
+            {
+                // Parse the recurring job data to compare with background job
+                if (string.IsNullOrEmpty(recurringJobData))
+                    return false;
+
+                // Check if the job types and methods match
+                var jobTypeName = backgroundJob.Type.FullName;
+                var methodName = backgroundJob.Method.Name;
+
+                return !string.IsNullOrEmpty(jobTypeName) &&
+                       !string.IsNullOrEmpty(methodName) &&
+                       recurringJobData.Contains(jobTypeName) &&
+                       recurringJobData.Contains(methodName);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private string GetJobId(PerformContext context)
         {
             try
@@ -99,14 +200,22 @@ namespace CronRadar.Extensions
 
                 // Try multiple methods to get the recurring job ID
 
-                // Method 1: Check if RecurringJobId is in Items (some Hangfire versions)
+                // Method 1: Check our stored parameter first (most reliable)
+                var storedJobId = context.GetJobParameter<string>("CronRadar_RecurringJobId");
+                if (!string.IsNullOrEmpty(storedJobId))
+                {
+                    _logger?.LogDebug("CronRadar: Using stored RecurringJobId: {JobId}", storedJobId);
+                    return storedJobId;
+                }
+
+                // Method 2: Check if RecurringJobId is in Items (some Hangfire versions)
                 if (context.Items.TryGetValue("RecurringJobId", out var itemValue) &&
                     itemValue is string itemId && !string.IsNullOrEmpty(itemId))
                 {
                     return itemId;
                 }
 
-                // Method 2: Try to get from storage using the background job ID
+                // Method 3: Try to get from storage using the background job ID
                 if (context.BackgroundJob?.Id != null)
                 {
                     try
@@ -147,7 +256,7 @@ namespace CronRadar.Extensions
                     }
                 }
 
-                // Method 3: Check job parameter (legacy)
+                // Method 4: Check job parameter (legacy)
                 var paramJobId = context.GetJobParameter<string>("RecurringJobId");
                 if (!string.IsNullOrEmpty(paramJobId))
                 {
