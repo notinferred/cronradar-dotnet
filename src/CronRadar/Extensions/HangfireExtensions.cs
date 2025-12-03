@@ -16,18 +16,14 @@ namespace CronRadar.Extensions
         /// Call this after configuring Hangfire services.
         /// </summary>
         /// <param name="configuration">Hangfire global configuration.</param>
-        /// <param name="cronRadarClient">CronRadar client instance.</param>
+        /// <param name="cronRadarClient">Optional CronRadar client instance. If not provided, uses environment variable.</param>
         /// <returns>The configuration for chaining.</returns>
-        public static object UseCronRadar(this object configuration, ICronRadarClient cronRadarClient)
+        public static object UseCronRadar(this object configuration, ICronRadarClient? cronRadarClient = null)
         {
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
-            if (cronRadarClient == null) throw new ArgumentNullException(nameof(cronRadarClient));
 
-            // Note: This is a placeholder for Hangfire integration
-            // Actual implementation would require Hangfire.Core reference
-            // Users should install Hangfire separately and use the extension methods below
-
-            return configuration;
+            // Use the CronRadarHangfire helper which handles the filter registration
+            return CronRadarHangfire.UseCronRadar(configuration, cronRadarClient);
         }
 
         /// <summary>

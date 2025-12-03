@@ -152,40 +152,50 @@ public class BackupService
 
 ## Hangfire Integration
 
-### Basic Setup
+### Automatic Monitoring (NEW!) - Just ONE Line! 🚀
 
 ```csharp
 using CronRadar.Extensions;
 
-// In your Hangfire configuration
+// In Program.cs - just add .UseCronRadar() to your Hangfire configuration
+builder.Services.AddHangfire(configuration => configuration
+    .UsePostgreSqlStorage(connectionString)
+    .UseCronRadar());  // ← ONE LINE - Monitors ALL jobs automatically!
+
+// That's it! All your existing Hangfire jobs are now monitored
+// No changes needed to your job code!
+```
+
+### How the One-Line Setup Works
+
+The `.UseCronRadar()` extension:
+- ✅ Automatically monitors ALL Hangfire jobs
+- ✅ No changes to existing job code required
+- ✅ Auto-syncs monitors on first execution
+- ✅ Pings CronRadar on successful completion
+- ✅ Reports failures with error details
+- ✅ Works with recurring jobs, fire-and-forget, delayed, and continuations
+
+### Manual Monitoring (For Specific Control)
+
+```csharp
+// If you prefer manual control over specific jobs
 var cronRadar = new CronRadarClient();
 
-// Sync monitor and create Hangfire job
+// Option 1: Create monitored job
 RecurringJob.AddOrUpdate(
     "daily-backup",
     cronRadar.CreateMonitoredJob("daily-backup", () => RunBackup()),
     "0 2 * * *"
 );
-```
 
-### Advanced Hangfire Integration
-
-```csharp
-// Extension method for IRecurringJobManager (requires Hangfire.Core)
+// Option 2: Extension method for IRecurringJobManager
 recurringJobManager.AddOrUpdateWithMonitoring(
     cronRadar,
     "daily-backup",
     () => BackupService.Run(),
     "0 2 * * *",
     "Database Backup" // Optional display name
-);
-
-// For async jobs
-recurringJobManager.AddOrUpdateWithMonitoring(
-    cronRadar,
-    "data-sync",
-    async () => await DataService.SyncAsync(),
-    "0 * * * *"
 );
 ```
 

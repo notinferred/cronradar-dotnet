@@ -9,17 +9,26 @@
 
     <!-- Package Information -->
     <PackageId>CronRadar</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.0.2</Version>
     <Authors>CronRadar</Authors>
     <Company>CronRadar</Company>
     <Product>CronRadar .NET SDK</Product>
-    <Description>Official .NET SDK for CronRadar - Simple cron job monitoring. Monitor scheduled tasks, background jobs, and recurring processes with ease.</Description>
-    <PackageTags>cronradar;monitoring;cron;scheduled-tasks;background-jobs;hangfire;health-monitoring</PackageTags>
-    <PackageProjectUrl>https://github.com/cronradar/cronradar-dotnet</PackageProjectUrl>
+    <Title>CronRadar - One-Line Cron Job Monitoring</Title>
+    <Description>Official .NET SDK for CronRadar. Monitor Hangfire, Quartz.NET, and BackgroundService jobs with one line of code. Features automatic job discovery, zero-config setup, and fail-safe operation.</Description>
+    <PackageTags>cronradar;monitoring;cron;scheduled-tasks;background-jobs;hangfire;quartz;health-monitoring;alerting;devops</PackageTags>
+    <PackageProjectUrl>https://cronradar.com</PackageProjectUrl>
     <RepositoryUrl>https://github.com/cronradar/cronradar-dotnet</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>
+v1.0.2 - Hangfire One-Line Integration
+• NEW: .UseCronRadar() - Monitor ALL Hangfire jobs with one line
+• NEW: Automatic job discovery and monitoring
+• NEW: CronRadarJobFilter for zero-config integration
+• Improved fail-safe operation
+• Enhanced documentation
+    </PackageReleaseNotes>
 
     <!-- Build Configuration -->
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
