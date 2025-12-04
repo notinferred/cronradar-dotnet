@@ -9,7 +9,7 @@
 
     <!-- Package Information -->
     <PackageId>CronRadar</PackageId>
-    <Version>1.0.5</Version>
+    <Version>1.0.6</Version>
     <Authors>CronRadar</Authors>
     <Company>CronRadar</Company>
     <Product>CronRadar .NET SDK</Product>
@@ -22,13 +22,11 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>
-v1.0.5 - Complete Refactor for Simplicity
-• REFACTORED: Complete rewrite of Hangfire integration
-• SIMPLIFIED: Cleaner architecture with immediate monitor syncing
-• NEW: MonitoredRecurringJobManager for automatic sync on job registration
-• NEW: Extension methods that sync monitors when called
-• REMOVED: Complex discovery code and delayed syncing
-• FIXED: Monitors now created reliably when jobs are registered
+v1.0.6 - Production Ready
+• IMPROVED: Automatic job discovery with multiple retry attempts
+• FIXED: JobStorage.Current availability issues
+• CLEANED: Removed debug console output for production use
+• STABLE: Monitors reliably sync on application startup
     </PackageReleaseNotes>
 
     <!-- Build Configuration -->
