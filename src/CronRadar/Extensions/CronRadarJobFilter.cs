@@ -63,14 +63,18 @@ namespace CronRadar.Extensions
         {
             try
             {
-                // For recurring jobs, use the recurring job ID
-                if (context.BackgroundJob?.Job != null)
+                // CRITICAL: For recurring jobs, we MUST use the exact recurring job ID
+                // that was used when the job was registered (e.g., "check-overdue-pings")
+                // This MUST match what we sync to CronRadar!
+
+                // Check if this is a recurring job by looking for RecurringJobId in context
+                var recurringJobId = context.GetJobParameter<string>("RecurringJobId");
+                if (!string.IsNullOrEmpty(recurringJobId))
                 {
-                    var jobType = context.BackgroundJob.Job.Type;
-                    var methodName = context.BackgroundJob.Job.Method.Name;
-                    return $"{jobType.Name}.{methodName}";
+                    return recurringJobId;
                 }
 
+                // Fallback for non-recurring jobs
                 return context.BackgroundJob?.Id ?? "";
             }
             catch
