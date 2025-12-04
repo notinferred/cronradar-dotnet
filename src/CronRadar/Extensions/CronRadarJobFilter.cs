@@ -3,6 +3,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -221,12 +222,98 @@ namespace CronRadar.Extensions
                 // Add the filter to global filters
                 GlobalJobFilters.Filters.Add(filter);
 
+                // Sync existing recurring jobs after Hangfire initializes
+                Task.Run(async () =>
+                {
+                    await Task.Delay(10000); // Wait for Hangfire to fully initialize
+                    SyncRecurringJobs();
+                });
+
                 return configuration;
             }
             catch
             {
                 // Never break the application
                 return configuration;
+            }
+        }
+
+        /// <summary>
+        /// Syncs all registered recurring jobs with CronRadar
+        /// </summary>
+        public static void SyncRecurringJobs()
+        {
+            try
+            {
+                if (_client == null) return;
+
+                var monitors = new List<Monitor>();
+
+                // Try to get recurring jobs from Hangfire storage using reflection
+                try
+                {
+                    // Get JobStorage.Current
+                    var jobStorageType = Type.GetType("Hangfire.JobStorage, Hangfire.Core");
+                    if (jobStorageType != null)
+                    {
+                        var currentProperty = jobStorageType.GetProperty("Current", BindingFlags.Public | BindingFlags.Static);
+                        var storage = currentProperty?.GetValue(null);
+
+                        if (storage != null)
+                        {
+                            // Get connection
+                            var getConnectionMethod = storage.GetType().GetMethod("GetConnection");
+                            if (getConnectionMethod != null)
+                            {
+                                using (var connection = getConnectionMethod.Invoke(storage, null) as IDisposable)
+                                {
+                                    if (connection != null)
+                                    {
+                                        // Try to get recurring jobs
+                                        var getRecurringJobsMethod = connection.GetType().GetMethod("GetRecurringJobs");
+                                        if (getRecurringJobsMethod != null)
+                                        {
+                                            var recurringJobs = getRecurringJobsMethod.Invoke(connection, null);
+                                            if (recurringJobs != null)
+                                            {
+                                                // Process each job
+                                                foreach (var job in (IEnumerable<dynamic>)recurringJobs)
+                                                {
+                                                    try
+                                                    {
+                                                        string id = job.Id;
+                                                        string cron = job.Cron ?? "* * * * *";
+                                                        string name = job.Job?.Type?.Name ?? id;
+
+                                                        monitors.Add(new Monitor(id, cron, name));
+                                                    }
+                                                    catch
+                                                    {
+                                                        // Skip jobs we can't process
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // If reflection fails, we'll rely on jobs syncing when they run
+                }
+
+                // Sync discovered monitors
+                if (monitors.Count > 0)
+                {
+                    _client.Sync(monitors);
+                }
+            }
+            catch
+            {
+                // Silently fail - never break the application
             }
         }
 
