@@ -1,81 +1,43 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net6.0;net7.0;net8.0;net9.0;netstandard2.0;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
 
     <!-- Package Information -->
     <PackageId>CronRadar</PackageId>
-    <Version>1.0.12</Version>
+    <Version>0.0.1</Version>
     <Authors>CronRadar</Authors>
     <Company>CronRadar</Company>
     <Product>CronRadar .NET SDK</Product>
-    <Title>CronRadar - One-Line Cron Job Monitoring</Title>
-    <Description>Official .NET SDK for CronRadar. Monitor Hangfire, Quartz.NET, and BackgroundService jobs with one line of code. Features automatic job discovery, zero-config setup, and fail-safe operation.</Description>
-    <PackageTags>cronradar;monitoring;cron;scheduled-tasks;background-jobs;hangfire;quartz;health-monitoring;alerting;devops</PackageTags>
-    <PackageProjectUrl>https://cronradar.com</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/cronradar/cronradar-dotnet</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
+    <Description>Dead-simple cron job monitoring. One function: Ping(). Zero dependencies.</Description>
+    <Copyright>Copyright © CronRadar 2025</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/cronradar/cronradar-dotnet</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/cronradar/cronradar-dotnet</RepositoryUrl>
+    <PackageTags>cron;monitoring;scheduler;job;task;ping</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>
-v1.0.12 - Fix Production Job Monitoring
-• FIXED: Only monitor explicitly registered recurring jobs
-• FIXED: Prevent background job IDs from being treated as monitors
-• IMPROVED: Track known recurring jobs to avoid false monitoring
-• FIXED: Production issue where numeric job IDs were creating unwanted monitors
-• STABLE: Fully backward compatible
-
-v1.0.11 - Enhanced Hangfire Job ID Capture
-• IMPROVED: Enhanced RecurringJobId capture through multiple filter interfaces
-• NEW: Implements IClientFilter and IElectStateFilter for better job tracking
+v0.0.1 - Fresh Start: Minimal by Design
+• One function: Ping()
+• Zero dependencies
+• 30 lines of code
+• Never throws exceptions
+• Static class for simplicity
+• Framework extensions available separately
     </PackageReleaseNotes>
 
     <!-- Build Configuration -->
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <EmbedUntrackedSources>true</EmbedUntrackedSources>
-    <IncludeSymbols>true</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <Deterministic>true</Deterministic>
-    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
-
-    <!-- Strong Naming -->
-    <SignAssembly>false</SignAssembly>
-    <AssemblyOriginatorKeyFile>CronRadar.snk</AssemblyOriginatorKeyFile>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
-  <!-- Dependencies -->
-  <ItemGroup>
-    <!-- Core dependencies - using built-in .NET libraries only -->
-    <PackageReference Include="System.Text.Json" Version="8.0.5" Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'netstandard2.1'" />
-  </ItemGroup>
+  <!-- NO DEPENDENCIES - This is the core principle -->
 
-  <!-- Optional dependencies for DI support -->
-  <ItemGroup>
-    <PackageReference Include="Hangfire.Core" Version="1.8.20" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="6.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="6.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
-  </ItemGroup>
-
-  <!-- Development dependencies -->
-  <ItemGroup>
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
-  </ItemGroup>
-
-  <!-- Package assets -->
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
-
-  <!-- Conditional compilation for framework features -->
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net6.0' OR '$(TargetFramework)' == 'net7.0' OR '$(TargetFramework)' == 'net8.0'">
-    <DefineConstants>$(DefineConstants);NET6_0_OR_GREATER</DefineConstants>
-  </PropertyGroup>
 
 </Project>
