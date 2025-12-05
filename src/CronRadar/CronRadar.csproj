@@ -9,7 +9,7 @@
 
     <!-- Package Information -->
     <PackageId>CronRadar</PackageId>
-    <Version>1.0.11</Version>
+    <Version>1.0.12</Version>
     <Authors>CronRadar</Authors>
     <Company>CronRadar</Company>
     <Product>CronRadar .NET SDK</Product>
@@ -22,17 +22,16 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>
+v1.0.12 - Fix Production Job Monitoring
+• FIXED: Only monitor explicitly registered recurring jobs
+• FIXED: Prevent background job IDs from being treated as monitors
+• IMPROVED: Track known recurring jobs to avoid false monitoring
+• FIXED: Production issue where numeric job IDs were creating unwanted monitors
+• STABLE: Fully backward compatible
+
 v1.0.11 - Enhanced Hangfire Job ID Capture
 • IMPROVED: Enhanced RecurringJobId capture through multiple filter interfaces
 • NEW: Implements IClientFilter and IElectStateFilter for better job tracking
-• IMPROVED: More reliable job ID detection during job creation and state transitions
-• IMPROVED: Fallback mechanisms for capturing job IDs in various Hangfire configurations
-• STABLE: Fully backward compatible with existing implementations
-
-v1.0.10 - Auto-Registration &amp; Self-Healing Monitors
-• NEW: Automatic monitor registration on 404 responses
-• NEW: Monitor configuration caching for resilience
-• IMPROVED: Self-healing monitors recover from deletion
     </PackageReleaseNotes>
 
     <!-- Build Configuration -->

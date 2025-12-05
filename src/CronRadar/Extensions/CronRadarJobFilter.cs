@@ -24,6 +24,7 @@ namespace CronRadar.Extensions
         private readonly ILogger? _logger;
         private readonly ConcurrentDictionary<string, bool> _syncedJobs = new();
         private readonly ConcurrentDictionary<string, string> _jobSchedules = new();
+        internal static readonly ConcurrentDictionary<string, bool> KnownRecurringJobs = new();
 
         public CronRadarJobFilter(ICronRadarClient? client = null, ILogger? logger = null)
         {
@@ -43,7 +44,14 @@ namespace CronRadar.Extensions
                 var jobId = GetJobId(context);
                 if (string.IsNullOrEmpty(jobId))
                 {
-                    _logger?.LogWarning("CronRadar: Could not determine job ID for ping");
+                    _logger?.LogDebug("CronRadar: Could not determine job ID for ping");
+                    return;
+                }
+
+                // Only monitor known recurring jobs
+                if (!KnownRecurringJobs.ContainsKey(jobId))
+                {
+                    _logger?.LogDebug("CronRadar: Skipping job {JobId} - not a known recurring job", jobId);
                     return;
                 }
 
@@ -263,8 +271,8 @@ namespace CronRadar.Extensions
                     return paramJobId;
                 }
 
-                // Fallback for non-recurring jobs
-                return context.BackgroundJob?.Id ?? "";
+                // Non-recurring jobs should not be monitored
+                return "";
             }
             catch (Exception ex)
             {
@@ -349,6 +357,9 @@ namespace CronRadar.Extensions
             {
                 // Cache the schedule for later use
                 _jobSchedules[jobId] = cronExpression;
+
+                // Track this as a known recurring job
+                CronRadarJobFilter.KnownRecurringJobs.TryAdd(jobId, true);
 
                 var monitor = new Monitor(jobId, cronExpression, jobName);
                 _client.Sync(new[] { monitor });
@@ -468,6 +479,8 @@ namespace CronRadar.Extensions
                     foreach (var monitor in monitors)
                     {
                         Console.WriteLine($"  - Key: {monitor.Key}, Cron: {monitor.Schedule}, Name: {monitor.Name}");
+                        // Track this as a known recurring job
+                        CronRadarJobFilter.KnownRecurringJobs.TryAdd(monitor.Key, true);
                     }
 
                     var result = _client.Sync(monitors);

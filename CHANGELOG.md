@@ -5,6 +5,17 @@ All notable changes to the CronRadar .NET SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.12] - 2025-01-20
+
+### Fixed
+- Only monitor explicitly registered recurring jobs, not all background jobs
+- Prevent numeric background job IDs from being treated as monitors
+- Production issue where background job IDs were creating unwanted monitors
+
+### Improved
+- Track known recurring jobs to avoid false monitoring
+- More reliable job filtering in production environments
+
 ## [1.0.11] - 2025-01-20
 
 ### Added
