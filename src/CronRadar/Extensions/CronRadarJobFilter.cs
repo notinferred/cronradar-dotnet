@@ -261,6 +261,20 @@ namespace CronRadar.Extensions
         }
 
         /// <summary>
+        /// Enables CronRadar monitoring for all Hangfire jobs with the specified API key.
+        /// </summary>
+        /// <param name="configuration">The Hangfire global configuration.</param>
+        /// <param name="apiKey">The CronRadar API key.</param>
+        /// <returns>The configuration for chaining.</returns>
+        public static IGlobalConfiguration UseCronRadar(this IGlobalConfiguration configuration, string apiKey)
+        {
+            if (string.IsNullOrEmpty(apiKey))
+                throw new ArgumentException("API key cannot be null or empty", nameof(apiKey));
+
+            return configuration.UseCronRadar(new CronRadarClient(apiKey));
+        }
+
+        /// <summary>
         /// Tries to sync all recurring jobs with CronRadar
         /// </summary>
         private static bool TrySyncAllRecurringJobs()
