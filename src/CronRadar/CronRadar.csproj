@@ -7,24 +7,17 @@
 
     <!-- Package Information -->
     <PackageId>CronRadar</PackageId>
-    <Version>0.0.2</Version>
+    <Version>0.0.3</Version>
     <Authors>CronRadar</Authors>
     <Company>CronRadar</Company>
     <Product>CronRadar .NET SDK</Product>
-    <Description>Dead-simple cron job monitoring. One function: Ping(). Zero dependencies.</Description>
+    <Description>Dead-simple cron job monitoring with auto-registration. Two functions: Ping() and SyncMonitor(). Self-healing monitors.</Description>
     <Copyright>Copyright © CronRadar 2025</Copyright>
     <PackageProjectUrl>https://github.com/cronradar/cronradar-dotnet</PackageProjectUrl>
     <RepositoryUrl>https://github.com/cronradar/cronradar-dotnet</RepositoryUrl>
-    <PackageTags>cron;monitoring;scheduler;job;task;ping</PackageTags>
+    <PackageTags>cron;monitoring;scheduler;job;task;ping;sync;auto-register</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>
-v0.0.2 - Enhanced Flexibility
-• Added support for both GET and POST methods
-• GET is now default (better for cron jobs)
-• Can override with CRONRADAR_METHOD environment variable
-• Maintains zero dependencies
-• Backward compatible
-    </PackageReleaseNotes>
+    <PackageReleaseNotes>Monitor any scheduled job with self-healing. Just call CronRadar.Ping() after your job completes.</PackageReleaseNotes>
 
     <!-- Build Configuration -->
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
@@ -32,7 +25,12 @@ v0.0.2 - Enhanced Flexibility
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
-  <!-- NO DEPENDENCIES - This is the core principle -->
+  <!-- Minimal dependency for JSON serialization -->
+  <ItemGroup>
+    <!-- System.Text.Json for sync endpoint - only needed for older frameworks -->
+    <PackageReference Include="System.Text.Json" Version="4.7.2" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
+    <!-- .NET 6+ includes System.Text.Json in the framework -->
+  </ItemGroup>
 
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
