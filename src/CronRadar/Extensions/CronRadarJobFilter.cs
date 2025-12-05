@@ -277,19 +277,45 @@ namespace CronRadar.Extensions
                                             if (recurringJobs != null)
                                             {
                                                 // Process each job
-                                                foreach (var job in (IEnumerable<dynamic>)recurringJobs)
+                                                var jobsEnumerable = recurringJobs as System.Collections.IEnumerable;
+                                                if (jobsEnumerable != null)
                                                 {
-                                                    try
+                                                    foreach (var job in jobsEnumerable)
                                                     {
-                                                        string id = job.Id;
-                                                        string cron = job.Cron ?? "* * * * *";
-                                                        string name = job.Job?.Type?.Name ?? id;
+                                                        try
+                                                        {
+                                                            var jobType = job.GetType();
+                                                            var idProp = jobType.GetProperty("Id");
+                                                            var cronProp = jobType.GetProperty("Cron");
+                                                            var jobProp = jobType.GetProperty("Job");
 
-                                                        monitors.Add(new Monitor(id, cron, name));
-                                                    }
-                                                    catch
-                                                    {
-                                                        // Skip jobs we can't process
+                                                            string id = idProp?.GetValue(job)?.ToString() ?? "";
+                                                            string cron = cronProp?.GetValue(job)?.ToString() ?? "* * * * *";
+
+                                                            string name = id;
+                                                            if (jobProp != null)
+                                                            {
+                                                                var jobObj = jobProp.GetValue(job);
+                                                                if (jobObj != null)
+                                                                {
+                                                                    var typeProp = jobObj.GetType().GetProperty("Type");
+                                                                    var typeObj = typeProp?.GetValue(jobObj) as Type;
+                                                                    if (typeObj != null)
+                                                                    {
+                                                                        name = typeObj.Name;
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            if (!string.IsNullOrEmpty(id))
+                                                            {
+                                                                monitors.Add(new Monitor(id, cron, name));
+                                                            }
+                                                        }
+                                                        catch
+                                                        {
+                                                            // Skip jobs we can't process
+                                                        }
                                                     }
                                                 }
                                             }
