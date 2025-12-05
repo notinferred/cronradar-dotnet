@@ -21,6 +21,7 @@ namespace CronRadar
 
         /// <summary>
         /// Ping CronRadar to indicate your job has run successfully.
+        /// Uses GET by default (better for cron), but can use POST via CRONRADAR_METHOD env var.
         /// </summary>
         /// <param name="monitorKey">The monitor key identifying your job</param>
         public static void Ping(string monitorKey)
@@ -28,10 +29,18 @@ namespace CronRadar
             try
             {
                 var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
-                if (string.IsNullOrEmpty(apiKey)) return; // Silent fail if no API key
+                if (string.IsNullOrEmpty(apiKey))
+                {
+                    Console.WriteLine($"[CronRadar] Warning: CRONRADAR_API_KEY environment variable not set. Monitor '{monitorKey}' will not be tracked.");
+                    return; // Continue without breaking
+                }
+
+                // Allow method override via env var, default to GET for simplicity
+                var methodStr = Environment.GetEnvironmentVariable("CRONRADAR_METHOD") ?? "GET";
+                var method = methodStr.ToUpperInvariant() == "POST" ? HttpMethod.Post : HttpMethod.Get;
 
                 var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{apiKey}:"));
-                var request = new HttpRequestMessage(HttpMethod.Post, $"/ping/{Uri.EscapeDataString(monitorKey)}");
+                var request = new HttpRequestMessage(method, $"/ping/{Uri.EscapeDataString(monitorKey)}");
                 request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
                 _http.SendAsync(request).Wait(5000);
             }
@@ -43,6 +52,7 @@ namespace CronRadar
 
         /// <summary>
         /// Asynchronously ping CronRadar to indicate your job has run successfully.
+        /// Uses GET by default (better for cron), but can use POST via CRONRADAR_METHOD env var.
         /// </summary>
         /// <param name="monitorKey">The monitor key identifying your job</param>
         public static async Task PingAsync(string monitorKey)
@@ -50,10 +60,18 @@ namespace CronRadar
             try
             {
                 var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
-                if (string.IsNullOrEmpty(apiKey)) return; // Silent fail if no API key
+                if (string.IsNullOrEmpty(apiKey))
+                {
+                    Console.WriteLine($"[CronRadar] Warning: CRONRADAR_API_KEY environment variable not set. Monitor '{monitorKey}' will not be tracked.");
+                    return; // Continue without breaking
+                }
+
+                // Allow method override via env var, default to GET for simplicity
+                var methodStr = Environment.GetEnvironmentVariable("CRONRADAR_METHOD") ?? "GET";
+                var method = methodStr.ToUpperInvariant() == "POST" ? HttpMethod.Post : HttpMethod.Get;
 
                 var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{apiKey}:"));
-                var request = new HttpRequestMessage(HttpMethod.Post, $"/ping/{Uri.EscapeDataString(monitorKey)}");
+                var request = new HttpRequestMessage(method, $"/ping/{Uri.EscapeDataString(monitorKey)}");
                 request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
                 await _http.SendAsync(request).ConfigureAwait(false);
             }

@@ -7,25 +7,23 @@
 
     <!-- Package Information -->
     <PackageId>CronRadar</PackageId>
-    <Version>0.0.1</Version>
+    <Version>0.0.2</Version>
     <Authors>CronRadar</Authors>
     <Company>CronRadar</Company>
     <Product>CronRadar .NET SDK</Product>
     <Description>Dead-simple cron job monitoring. One function: Ping(). Zero dependencies.</Description>
     <Copyright>Copyright © CronRadar 2025</Copyright>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/cronradar/cronradar-dotnet</PackageProjectUrl>
     <RepositoryUrl>https://github.com/cronradar/cronradar-dotnet</RepositoryUrl>
     <PackageTags>cron;monitoring;scheduler;job;task;ping</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>
-v0.0.1 - Fresh Start: Minimal by Design
-• One function: Ping()
-• Zero dependencies
-• 30 lines of code
-• Never throws exceptions
-• Static class for simplicity
-• Framework extensions available separately
+v0.0.2 - Enhanced Flexibility
+• Added support for both GET and POST methods
+• GET is now default (better for cron jobs)
+• Can override with CRONRADAR_METHOD environment variable
+• Maintains zero dependencies
+• Backward compatible
     </PackageReleaseNotes>
 
     <!-- Build Configuration -->
