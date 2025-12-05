@@ -13,10 +13,7 @@ dotnet add package CronRadar
 ## Quick Start
 
 ```csharp
-// After your job completes
-CronRadar.Ping("daily-backup");
-
-// With self-healing (auto-registers if missing)
+// After your job completes (with self-healing)
 CronRadar.Ping("daily-backup", schedule: "0 2 * * *");
 ```
 
@@ -33,7 +30,7 @@ export CRONRADAR_API_KEY=ck_app_xxxxx_yyyyy
 ### Async Operations
 
 ```csharp
-await CronRadar.PingAsync("daily-backup");
+await CronRadar.PingAsync("daily-backup", schedule: "0 2 * * *");
 ```
 
 ### Proactive Monitoring
