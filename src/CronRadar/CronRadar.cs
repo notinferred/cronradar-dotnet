@@ -18,10 +18,7 @@ namespace CronRadar
     {
         private static readonly HttpClient _http = new HttpClient
         {
-            BaseAddress = new Uri(
-                Environment.GetEnvironmentVariable("CRONRADAR_BASE_URL")
-                ?? "https://cronradar.com"
-            ),
+            BaseAddress = new Uri("https://api.cronradar.com"),
             Timeout = TimeSpan.FromSeconds(5)
         };
 
@@ -33,8 +30,7 @@ namespace CronRadar
         /// </summary>
         /// <param name="monitorKey">The monitor key identifying your job</param>
         /// <param name="schedule">Optional cron schedule for auto-registration if monitor doesn't exist</param>
-        /// <param name="gracePeriod">Optional grace period in seconds for auto-registration</param>
-        public static void Monitor(string monitorKey, string? schedule = null, int? gracePeriod = null)
+        public static void Monitor(string monitorKey, string? schedule = null)
         {
             try
             {
@@ -54,7 +50,7 @@ namespace CronRadar
                     Console.WriteLine($"[CronRadar] Monitor '{monitorKey}' not found. Auto-registering with schedule '{schedule}'...");
 
                     var source = DetectSource();
-                    Sync(monitorKey, schedule, source, null, gracePeriod ?? 60);
+                    Sync(monitorKey, schedule, source);
 
                     // Retry ping
                     SendPingInternal(monitorKey, apiKey);
@@ -72,8 +68,7 @@ namespace CronRadar
         /// </summary>
         /// <param name="monitorKey">The monitor key identifying your job</param>
         /// <param name="schedule">Optional cron schedule for auto-registration if monitor doesn't exist</param>
-        /// <param name="gracePeriod">Optional grace period in seconds for auto-registration</param>
-        public static async Task MonitorAsync(string monitorKey, string? schedule = null, int? gracePeriod = null)
+        public static async Task MonitorAsync(string monitorKey, string? schedule = null)
         {
             try
             {
@@ -93,7 +88,7 @@ namespace CronRadar
                     Console.WriteLine($"[CronRadar] Monitor '{monitorKey}' not found. Auto-registering with schedule '{schedule}'...");
 
                     var source = DetectSource();
-                    await SyncAsync(monitorKey, schedule, source, null, gracePeriod ?? 60);
+                    await SyncAsync(monitorKey, schedule, source);
 
                     // Retry ping
                     await SendPingInternalAsync(monitorKey, apiKey);
@@ -117,8 +112,7 @@ namespace CronRadar
         /// <param name="schedule">Cron expression defining when the job runs</param>
         /// <param name="source">Source framework (e.g., "hangfire", "celery"). Auto-detected if null.</param>
         /// <param name="name">Human-readable name. Generated from key if null.</param>
-        /// <param name="gracePeriod">Grace period in seconds before alerting (default: 60)</param>
-        public static void Sync(string monitorKey, string schedule, string? source = null, string? name = null, int gracePeriod = 60)
+        public static void Sync(string monitorKey, string schedule, string? source = null, string? name = null)
         {
             try
             {
@@ -142,7 +136,7 @@ namespace CronRadar
                             key = monitorKey,
                             name = name,
                             schedule = schedule,
-                            gracePeriod = gracePeriod
+                            gracePeriod = 60
                         }
                     }
                 };
@@ -181,8 +175,7 @@ namespace CronRadar
         /// <param name="schedule">Cron expression defining when the job runs</param>
         /// <param name="source">Source framework (e.g., "hangfire", "celery"). Auto-detected if null.</param>
         /// <param name="name">Human-readable name. Generated from key if null.</param>
-        /// <param name="gracePeriod">Grace period in seconds before alerting (default: 60)</param>
-        public static async Task SyncAsync(string monitorKey, string schedule, string? source = null, string? name = null, int gracePeriod = 60)
+        public static async Task SyncAsync(string monitorKey, string schedule, string? source = null, string? name = null)
         {
             try
             {
@@ -206,7 +199,7 @@ namespace CronRadar
                             key = monitorKey,
                             name = name,
                             schedule = schedule,
-                            gracePeriod = gracePeriod
+                            gracePeriod = 60
                         }
                     }
                 };
@@ -245,11 +238,8 @@ namespace CronRadar
         {
             try
             {
-                var methodStr = Environment.GetEnvironmentVariable("CRONRADAR_METHOD") ?? "GET";
-                var method = methodStr.ToUpperInvariant() == "POST" ? HttpMethod.Post : HttpMethod.Get;
-
                 var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{apiKey}:"));
-                var request = new HttpRequestMessage(method, $"/ping/{Uri.EscapeDataString(monitorKey)}");
+                var request = new HttpRequestMessage(HttpMethod.Get, $"/ping/{Uri.EscapeDataString(monitorKey)}");
                 request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
 
                 return _http.SendAsync(request).Result;
@@ -264,11 +254,8 @@ namespace CronRadar
         {
             try
             {
-                var methodStr = Environment.GetEnvironmentVariable("CRONRADAR_METHOD") ?? "GET";
-                var method = methodStr.ToUpperInvariant() == "POST" ? HttpMethod.Post : HttpMethod.Get;
-
                 var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{apiKey}:"));
-                var request = new HttpRequestMessage(method, $"/ping/{Uri.EscapeDataString(monitorKey)}");
+                var request = new HttpRequestMessage(HttpMethod.Get, $"/ping/{Uri.EscapeDataString(monitorKey)}");
                 request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
 
                 return await _http.SendAsync(request);
