@@ -8,8 +8,9 @@
     <!-- Package Information -->
     <PackageId>CronRadar</PackageId>
     <Version>0.0.3</Version>
-    <Authors>CronRadar</Authors>
+    <Authors>Administrator</Authors>
     <Company>CronRadar</Company>
+    <PackageLicenseExpression>LicenseRef-Proprietary</PackageLicenseExpression>
     <Product>CronRadar .NET SDK</Product>
     <Description>Dead-simple cron job monitoring with auto-registration. Two functions: Ping() and SyncMonitor(). Self-healing monitors.</Description>
     <Copyright>Copyright © CronRadar 2025</Copyright>
