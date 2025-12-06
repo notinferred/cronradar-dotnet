@@ -10,35 +10,45 @@
 dotnet add package CronRadar
 ```
 
-## Quick Start
+## Usage
 
 ```csharp
-// After your job completes (with self-healing)
+// After your job completes successfully
+CronRadar.Monitor("daily-backup");
+
+// With self-healing (auto-register if monitor doesn't exist)
 CronRadar.Monitor("daily-backup", schedule: "0 2 * * *");
+```
+
+## Lifecycle Tracking
+
+**Option 1: Wrapper (Automatic)**
+```csharp
+await CronRadar.WrapAsync("daily-backup", async () =>
+{
+    await RunBackup();
+}, schedule: "0 2 * * *");
+```
+
+**Option 2: Manual**
+```csharp
+await CronRadar.StartJobAsync("daily-backup");
+try
+{
+    await RunBackup();
+    await CronRadar.CompleteJobAsync("daily-backup");
+}
+catch (Exception e)
+{
+    await CronRadar.FailJobAsync("daily-backup", e.Message);
+    throw;
+}
 ```
 
 ## Configuration
 
-Set your API key (get one at [cronradar.com](https://cronradar.com)):
-
-```bash
-export CRONRADAR_API_KEY=ck_app_xxxxx_yyyyy
-```
-
-## Advanced Usage
-
-### Async Operations
-
-```csharp
-await CronRadar.MonitorAsync("daily-backup", schedule: "0 2 * * *");
-```
-
-### Pre-Registration (Advanced)
-
-```csharp
-// Pre-register monitor before first execution
-CronRadar.Sync("daily-backup", "0 2 * * *");
-```
+Set environment variable:
+- `CRONRADAR_API_KEY`: Your API key from cronradar.com
 
 ## Framework Extensions
 

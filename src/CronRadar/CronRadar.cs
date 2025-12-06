@@ -18,7 +18,7 @@ namespace CronRadar
     {
         private static readonly HttpClient _http = new HttpClient
         {
-            BaseAddress = new Uri("https://api.cronradar.com"),
+            BaseAddress = new Uri("https://cron.life"),
             Timeout = TimeSpan.FromSeconds(5)
         };
 
@@ -50,7 +50,7 @@ namespace CronRadar
                     Console.WriteLine($"[CronRadar] Monitor '{monitorKey}' not found. Auto-registering with schedule '{schedule}'...");
 
                     var source = DetectSource();
-                    Sync(monitorKey, schedule, source);
+                    SyncMonitor(monitorKey, schedule, source);
 
                     // Retry ping
                     SendPingInternal(monitorKey, apiKey);
@@ -88,7 +88,7 @@ namespace CronRadar
                     Console.WriteLine($"[CronRadar] Monitor '{monitorKey}' not found. Auto-registering with schedule '{schedule}'...");
 
                     var source = DetectSource();
-                    await SyncAsync(monitorKey, schedule, source);
+                    await SyncMonitorAsync(monitorKey, schedule, source);
 
                     // Retry ping
                     await SendPingInternalAsync(monitorKey, apiKey);
@@ -97,6 +97,189 @@ namespace CronRadar
             catch
             {
                 // Never throw - protect user's job execution
+            }
+        }
+
+        #endregion
+
+        #region Lifecycle Methods
+
+        /// <summary>
+        /// Signal that a job has started executing.
+        /// Used for lifecycle tracking to detect hung jobs and measure execution duration.
+        /// </summary>
+        /// <param name="monitorKey">The monitor key identifying your job</param>
+        /// <param name="schedule">Optional cron schedule for auto-registration</param>
+        public static void StartJob(string monitorKey, string? schedule = null)
+        {
+            try
+            {
+                var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
+                if (string.IsNullOrEmpty(apiKey)) return;
+
+                SendLifecyclePing(monitorKey, "start", apiKey, schedule);
+            }
+            catch
+            {
+                // Never throw - protect user's job execution
+            }
+        }
+
+        /// <summary>
+        /// Asynchronously signal that a job has started executing.
+        /// </summary>
+        public static async Task StartJobAsync(string monitorKey, string? schedule = null)
+        {
+            try
+            {
+                var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
+                if (string.IsNullOrEmpty(apiKey)) return;
+
+                await SendLifecyclePingAsync(monitorKey, "start", apiKey, schedule);
+            }
+            catch
+            {
+                // Never throw - protect user's job execution
+            }
+        }
+
+        /// <summary>
+        /// Signal that a job has completed successfully.
+        /// Used for lifecycle tracking to record completion time and calculate duration.
+        /// </summary>
+        /// <param name="monitorKey">The monitor key identifying your job</param>
+        public static void CompleteJob(string monitorKey)
+        {
+            try
+            {
+                var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
+                if (string.IsNullOrEmpty(apiKey)) return;
+
+                SendLifecyclePing(monitorKey, "complete", apiKey);
+            }
+            catch
+            {
+                // Never throw - protect user's job execution
+            }
+        }
+
+        /// <summary>
+        /// Asynchronously signal that a job has completed successfully.
+        /// </summary>
+        public static async Task CompleteJobAsync(string monitorKey)
+        {
+            try
+            {
+                var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
+                if (string.IsNullOrEmpty(apiKey)) return;
+
+                await SendLifecyclePingAsync(monitorKey, "complete", apiKey);
+            }
+            catch
+            {
+                // Never throw - protect user's job execution
+            }
+        }
+
+        /// <summary>
+        /// Signal that a job has failed.
+        /// Triggers immediate alerts without waiting for grace period.
+        /// </summary>
+        /// <param name="monitorKey">The monitor key identifying your job</param>
+        /// <param name="message">Optional failure message for debugging</param>
+        public static void FailJob(string monitorKey, string? message = null)
+        {
+            try
+            {
+                var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
+                if (string.IsNullOrEmpty(apiKey)) return;
+
+                SendLifecyclePing(monitorKey, "fail", apiKey, message: message);
+            }
+            catch
+            {
+                // Never throw - protect user's job execution
+            }
+        }
+
+        /// <summary>
+        /// Asynchronously signal that a job has failed.
+        /// </summary>
+        public static async Task FailJobAsync(string monitorKey, string? message = null)
+        {
+            try
+            {
+                var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
+                if (string.IsNullOrEmpty(apiKey)) return;
+
+                await SendLifecyclePingAsync(monitorKey, "fail", apiKey, message: message);
+            }
+            catch
+            {
+                // Never throw - protect user's job execution
+            }
+        }
+
+        /// <summary>
+        /// Wrap an action with automatic lifecycle monitoring.
+        /// Handles start/complete/fail signals automatically.
+        /// </summary>
+        /// <param name="monitorKey">The monitor key identifying your job</param>
+        /// <param name="action">The action to wrap</param>
+        /// <param name="schedule">Optional cron schedule for auto-registration</param>
+        public static void Wrap(string monitorKey, Action action, string? schedule = null)
+        {
+            StartJob(monitorKey, schedule);
+            try
+            {
+                action();
+                CompleteJob(monitorKey);
+            }
+            catch (Exception e)
+            {
+                FailJob(monitorKey, e.Message);
+                throw; // Re-throw to preserve original behavior
+            }
+        }
+
+        /// <summary>
+        /// Wrap an async function with automatic lifecycle monitoring.
+        /// Handles start/complete/fail signals automatically.
+        /// </summary>
+        /// <param name="monitorKey">The monitor key identifying your job</param>
+        /// <param name="func">The async function to wrap</param>
+        /// <param name="schedule">Optional cron schedule for auto-registration</param>
+        public static async Task WrapAsync(string monitorKey, Func<Task> func, string? schedule = null)
+        {
+            await StartJobAsync(monitorKey, schedule);
+            try
+            {
+                await func();
+                await CompleteJobAsync(monitorKey);
+            }
+            catch (Exception e)
+            {
+                await FailJobAsync(monitorKey, e.Message);
+                throw; // Re-throw to preserve original behavior
+            }
+        }
+
+        /// <summary>
+        /// Wrap an async function that returns a value with automatic lifecycle monitoring.
+        /// </summary>
+        public static async Task<T> WrapAsync<T>(string monitorKey, Func<Task<T>> func, string? schedule = null)
+        {
+            await StartJobAsync(monitorKey, schedule);
+            try
+            {
+                var result = await func();
+                await CompleteJobAsync(monitorKey);
+                return result;
+            }
+            catch (Exception e)
+            {
+                await FailJobAsync(monitorKey, e.Message);
+                throw; // Re-throw to preserve original behavior
             }
         }
 
@@ -112,7 +295,7 @@ namespace CronRadar
         /// <param name="schedule">Cron expression defining when the job runs</param>
         /// <param name="source">Source framework (e.g., "hangfire", "celery"). Auto-detected if null.</param>
         /// <param name="name">Human-readable name. Generated from key if null.</param>
-        public static void Sync(string monitorKey, string schedule, string? source = null, string? name = null)
+        public static void SyncMonitor(string monitorKey, string schedule, string? source = null, string? name = null)
         {
             try
             {
@@ -175,7 +358,7 @@ namespace CronRadar
         /// <param name="schedule">Cron expression defining when the job runs</param>
         /// <param name="source">Source framework (e.g., "hangfire", "celery"). Auto-detected if null.</param>
         /// <param name="name">Human-readable name. Generated from key if null.</param>
-        public static async Task SyncAsync(string monitorKey, string schedule, string? source = null, string? name = null)
+        public static async Task SyncMonitorAsync(string monitorKey, string schedule, string? source = null, string? name = null)
         {
             try
             {
@@ -263,6 +446,64 @@ namespace CronRadar
             catch
             {
                 return null;
+            }
+        }
+
+        private static void SendLifecyclePing(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null)
+        {
+            try
+            {
+                // Build URL
+                var url = $"/ping/{Uri.EscapeDataString(monitorKey)}/{endpoint}";
+
+                // Add query parameters
+                var queryParams = new List<string>();
+                if (!string.IsNullOrEmpty(schedule))
+                    queryParams.Add($"schedule={Uri.EscapeDataString(schedule)}");
+                if (!string.IsNullOrEmpty(message))
+                    queryParams.Add($"message={Uri.EscapeDataString(message)}");
+
+                if (queryParams.Count > 0)
+                    url += "?" + string.Join("&", queryParams);
+
+                var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{apiKey}:"));
+                var request = new HttpRequestMessage(HttpMethod.Post, url);
+                request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
+
+                _http.SendAsync(request).Wait();
+            }
+            catch
+            {
+                // Silently fail to protect job execution
+            }
+        }
+
+        private static async Task SendLifecyclePingAsync(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null)
+        {
+            try
+            {
+                // Build URL
+                var url = $"/ping/{Uri.EscapeDataString(monitorKey)}/{endpoint}";
+
+                // Add query parameters
+                var queryParams = new List<string>();
+                if (!string.IsNullOrEmpty(schedule))
+                    queryParams.Add($"schedule={Uri.EscapeDataString(schedule)}");
+                if (!string.IsNullOrEmpty(message))
+                    queryParams.Add($"message={Uri.EscapeDataString(message)}");
+
+                if (queryParams.Count > 0)
+                    url += "?" + string.Join("&", queryParams);
+
+                var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{apiKey}:"));
+                var request = new HttpRequestMessage(HttpMethod.Post, url);
+                request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
+
+                await _http.SendAsync(request);
+            }
+            catch
+            {
+                // Silently fail to protect job execution
             }
         }
 
