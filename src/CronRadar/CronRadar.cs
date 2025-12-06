@@ -12,7 +12,7 @@ namespace CronRadar
 {
     /// <summary>
     /// Dead-simple cron job monitoring with auto-registration support.
-    /// Two main functions: Ping() for execution confirmation, SyncMonitor() for registration.
+    /// Primary function: Monitor() for execution confirmation. Advanced: Sync() for pre-registration.
     /// </summary>
     public static class CronRadar
     {
@@ -25,16 +25,16 @@ namespace CronRadar
             Timeout = TimeSpan.FromSeconds(5)
         };
 
-        #region Ping Methods
+        #region Monitor Methods
 
         /// <summary>
-        /// Ping CronRadar to indicate your job has run successfully.
+        /// Monitor a job execution by recording it in CronRadar.
         /// Optionally provide schedule for self-healing (auto-registration on 404).
         /// </summary>
         /// <param name="monitorKey">The monitor key identifying your job</param>
         /// <param name="schedule">Optional cron schedule for auto-registration if monitor doesn't exist</param>
         /// <param name="gracePeriod">Optional grace period in seconds for auto-registration</param>
-        public static void Ping(string monitorKey, string? schedule = null, int? gracePeriod = null)
+        public static void Monitor(string monitorKey, string? schedule = null, int? gracePeriod = null)
         {
             try
             {
@@ -54,7 +54,7 @@ namespace CronRadar
                     Console.WriteLine($"[CronRadar] Monitor '{monitorKey}' not found. Auto-registering with schedule '{schedule}'...");
 
                     var source = DetectSource();
-                    SyncMonitor(monitorKey, schedule, source, null, gracePeriod ?? 60);
+                    Sync(monitorKey, schedule, source, null, gracePeriod ?? 60);
 
                     // Retry ping
                     SendPingInternal(monitorKey, apiKey);
@@ -67,13 +67,13 @@ namespace CronRadar
         }
 
         /// <summary>
-        /// Asynchronously ping CronRadar to indicate your job has run successfully.
+        /// Asynchronously monitor a job execution by recording it in CronRadar.
         /// Optionally provide schedule for self-healing (auto-registration on 404).
         /// </summary>
         /// <param name="monitorKey">The monitor key identifying your job</param>
         /// <param name="schedule">Optional cron schedule for auto-registration if monitor doesn't exist</param>
         /// <param name="gracePeriod">Optional grace period in seconds for auto-registration</param>
-        public static async Task PingAsync(string monitorKey, string? schedule = null, int? gracePeriod = null)
+        public static async Task MonitorAsync(string monitorKey, string? schedule = null, int? gracePeriod = null)
         {
             try
             {
@@ -93,7 +93,7 @@ namespace CronRadar
                     Console.WriteLine($"[CronRadar] Monitor '{monitorKey}' not found. Auto-registering with schedule '{schedule}'...");
 
                     var source = DetectSource();
-                    await SyncMonitorAsync(monitorKey, schedule, source, null, gracePeriod ?? 60);
+                    await SyncAsync(monitorKey, schedule, source, null, gracePeriod ?? 60);
 
                     // Retry ping
                     await SendPingInternalAsync(monitorKey, apiKey);
@@ -107,18 +107,18 @@ namespace CronRadar
 
         #endregion
 
-        #region SyncMonitor Methods
+        #region Sync Methods
 
         /// <summary>
-        /// Register a monitor with CronRadar, setting up expectations for when it should run.
-        /// Used by extensions to sync discovered jobs.
+        /// Pre-register a monitor with CronRadar, setting up expectations for when it should run.
+        /// Used internally by extensions to sync discovered jobs. Advanced usage only.
         /// </summary>
         /// <param name="monitorKey">The unique identifier for this monitor</param>
         /// <param name="schedule">Cron expression defining when the job runs</param>
         /// <param name="source">Source framework (e.g., "hangfire", "celery"). Auto-detected if null.</param>
         /// <param name="name">Human-readable name. Generated from key if null.</param>
         /// <param name="gracePeriod">Grace period in seconds before alerting (default: 60)</param>
-        public static void SyncMonitor(string monitorKey, string schedule, string? source = null, string? name = null, int gracePeriod = 60)
+        public static void Sync(string monitorKey, string schedule, string? source = null, string? name = null, int gracePeriod = 60)
         {
             try
             {
@@ -174,14 +174,15 @@ namespace CronRadar
         }
 
         /// <summary>
-        /// Asynchronously register a monitor with CronRadar.
+        /// Asynchronously pre-register a monitor with CronRadar.
+        /// Used internally by extensions to sync discovered jobs. Advanced usage only.
         /// </summary>
         /// <param name="monitorKey">The unique identifier for this monitor</param>
         /// <param name="schedule">Cron expression defining when the job runs</param>
         /// <param name="source">Source framework (e.g., "hangfire", "celery"). Auto-detected if null.</param>
         /// <param name="name">Human-readable name. Generated from key if null.</param>
         /// <param name="gracePeriod">Grace period in seconds before alerting (default: 60)</param>
-        public static async Task SyncMonitorAsync(string monitorKey, string schedule, string? source = null, string? name = null, int gracePeriod = 60)
+        public static async Task SyncAsync(string monitorKey, string schedule, string? source = null, string? name = null, int gracePeriod = 60)
         {
             try
             {

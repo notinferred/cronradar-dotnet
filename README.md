@@ -14,7 +14,7 @@ dotnet add package CronRadar
 
 ```csharp
 // After your job completes (with self-healing)
-CronRadar.Ping("daily-backup", schedule: "0 2 * * *");
+CronRadar.Monitor("daily-backup", schedule: "0 2 * * *");
 ```
 
 ## Configuration
@@ -30,14 +30,14 @@ export CRONRADAR_API_KEY=ck_app_xxxxx_yyyyy
 ### Async Operations
 
 ```csharp
-await CronRadar.PingAsync("daily-backup", schedule: "0 2 * * *");
+await CronRadar.MonitorAsync("daily-backup", schedule: "0 2 * * *");
 ```
 
-### Proactive Monitoring
+### Pre-Registration (Advanced)
 
 ```csharp
-// Register monitor upfront
-CronRadar.SyncMonitor("daily-backup", "0 2 * * *");
+// Pre-register monitor before first execution
+CronRadar.Sync("daily-backup", "0 2 * * *");
 ```
 
 ## Framework Extensions
@@ -48,4 +48,8 @@ CronRadar.SyncMonitor("daily-backup", "0 2 * * *");
 
 📚 Docs: [cronradar.com/docs](https://cronradar.com/docs)
 
-© 2025 CronRadar. All rights reserved.
+## License
+
+Proprietary - © 2025 CronRadar. All rights reserved.
+
+See [LICENSE](./LICENSE) for details. This SDK may only be used with the CronRadar monitoring service.
