@@ -10,56 +10,67 @@
 dotnet add package CronRadar
 ```
 
-## Usage
+## Quick Start
 
 ```csharp
-// After your job completes successfully
+// Set API key via environment variable
+// CRONRADAR_API_KEY=ck_app_xxxxx
+
+// After your job completes
 CronRadar.Monitor("daily-backup");
 
-// With self-healing (auto-register if monitor doesn't exist)
+// With auto-registration (if monitor doesn't exist)
 CronRadar.Monitor("daily-backup", schedule: "0 2 * * *");
 ```
 
 ## Lifecycle Tracking
 
-**Option 1: Wrapper (Automatic)**
-```csharp
-await CronRadar.WrapAsync("daily-backup", async () =>
-{
-    await RunBackup();
-}, schedule: "0 2 * * *");
-```
+Track start/complete/fail for better insights:
 
-**Option 2: Manual**
 ```csharp
-await CronRadar.StartJobAsync("daily-backup");
+CronRadar.StartJob("daily-backup", schedule: "0 2 * * *");
 try
 {
-    await RunBackup();
-    await CronRadar.CompleteJobAsync("daily-backup");
+    RunBackup();
+    CronRadar.CompleteJob("daily-backup");
 }
 catch (Exception e)
 {
-    await CronRadar.FailJobAsync("daily-backup", e.Message);
+    CronRadar.FailJob("daily-backup", e.Message);
     throw;
 }
 ```
 
+Or use the wrapper:
+
+```csharp
+CronRadar.Wrap("daily-backup", () =>
+{
+    RunBackup();
+}, schedule: "0 2 * * *");
+```
+
 ## Configuration
 
-Set environment variable:
-- `CRONRADAR_API_KEY`: Your API key from cronradar.com
+**API Key** (required):
+```bash
+CRONRADAR_API_KEY=ck_app_xxxxx
+```
+
+Or pass directly:
+```csharp
+CronRadar.Monitor("job-name", apiKey: "ck_app_xxxxx");
+```
+
+**Debug logging** (optional):
+```bash
+CRONRADAR_DEBUG=true
+```
 
 ## Framework Extensions
 
 - **Hangfire**: `dotnet add package CronRadar.Hangfire`
 
-## Support
-
-📚 Docs: [cronradar.com/docs](https://cronradar.com/docs)
-
 ## License
 
 Proprietary - © 2025 CronRadar. All rights reserved.
-
-See [LICENSE](./LICENSE) for details. This SDK may only be used with the CronRadar monitoring service.

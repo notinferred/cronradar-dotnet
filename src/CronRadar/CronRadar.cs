@@ -16,11 +16,108 @@ namespace CronRadar
     /// </summary>
     public static class CronRadar
     {
-        private static readonly HttpClient _http = new HttpClient
+        private static HttpClient? _httpClient;
+        private static readonly object _httpLock = new object();
+        private static string? _cachedSource = null;
+        private static readonly object _sourceLock = new object();
+
+        /// <summary>
+        /// Enable debug logging to Console.Error. Set via CRONRADAR_DEBUG environment variable or this property.
+        /// </summary>
+        public static bool DebugLoggingEnabled { get; set; } =
+            Environment.GetEnvironmentVariable(CronRadarConstants.DebugEnvironmentVariable)?.ToLowerInvariant() == "true";
+
+        /// <summary>
+        /// HTTP request timeout in seconds. Default: 5 seconds
+        /// IMPORTANT: Changes to this property after first HttpClient creation will not take effect.
+        /// Set this before any API calls.
+        /// </summary>
+        public static int TimeoutSeconds { get; set; } = CronRadarConstants.DefaultTimeoutSeconds;
+
+        /// <summary>
+        /// Default grace period in seconds for monitors. Default: 60 seconds
+        /// </summary>
+        public static int DefaultGracePeriodSeconds { get; set; } = CronRadarConstants.DefaultGracePeriodSeconds;
+
+        /// <summary>
+        /// Base URL for CronRadar API. Default: https://cron.life
+        /// Can be overridden via CRONRADAR_BASE_URL environment variable or by setting this property.
+        /// Changes after first HttpClient creation will not take effect.
+        /// </summary>
+        public static string BaseUrl { get; set; } = CronRadarConstants.DefaultBaseUrl;
+
+        private static HttpClient GetHttpClient()
         {
-            BaseAddress = new Uri("https://cron.life"),
-            Timeout = TimeSpan.FromSeconds(5)
-        };
+            if (_httpClient == null)
+            {
+                lock (_httpLock)
+                {
+                    if (_httpClient == null)
+                    {
+                        _httpClient = new HttpClient
+                        {
+                            BaseAddress = new Uri(BaseUrl),
+                            Timeout = TimeSpan.FromSeconds(TimeoutSeconds)
+                        };
+                    }
+                }
+            }
+            return _httpClient;
+        }
+
+        private static void LogDebug(string message)
+        {
+            if (DebugLoggingEnabled)
+            {
+                Console.Error.WriteLine($"[CronRadar Debug] {message}");
+            }
+        }
+
+        private static void LogError(string message, Exception? ex = null)
+        {
+            if (DebugLoggingEnabled)
+            {
+                Console.Error.WriteLine($"[CronRadar Error] {message}");
+                if (ex != null)
+                {
+                    Console.Error.WriteLine($"[CronRadar Error] Exception: {ex.GetType().Name}: {ex.Message}");
+                    Console.Error.WriteLine($"[CronRadar Error] StackTrace: {ex.StackTrace}");
+                }
+            }
+        }
+
+        private static bool ValidateMonitorKey(string monitorKey)
+        {
+            if (string.IsNullOrWhiteSpace(monitorKey))
+            {
+                LogError("Monitor key cannot be null or empty");
+                return false;
+            }
+            if (monitorKey.Length > CronRadarConstants.MaxMonitorKeyLength)
+            {
+                LogError($"Monitor key '{monitorKey}' exceeds maximum length of {CronRadarConstants.MaxMonitorKeyLength} characters");
+                return false;
+            }
+            return true;
+        }
+
+        private static bool ValidateSchedule(string? schedule)
+        {
+            if (string.IsNullOrWhiteSpace(schedule))
+            {
+                return true; // Schedule is optional for many operations
+            }
+
+            // Basic cron validation: should have 5 or 6 space-separated fields
+            var parts = schedule.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 5 || parts.Length > 6)
+            {
+                LogError($"Invalid cron schedule '{schedule}': Expected 5 or 6 fields, got {parts.Length}");
+                return false;
+            }
+
+            return true;
+        }
 
         #region Monitor Methods
 
@@ -30,14 +127,18 @@ namespace CronRadar
         /// </summary>
         /// <param name="monitorKey">The monitor key identifying your job</param>
         /// <param name="schedule">Optional cron schedule for auto-registration if monitor doesn't exist</param>
-        public static void Monitor(string monitorKey, string? schedule = null)
+        /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
+        public static void Monitor(string monitorKey, string? schedule = null, string? apiKey = null)
         {
             try
             {
-                var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
+                if (!ValidateMonitorKey(monitorKey)) return;
+                if (!ValidateSchedule(schedule)) return;
+
+                apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey))
                 {
-                    Console.WriteLine($"[CronRadar] Warning: CRONRADAR_API_KEY environment variable not set. Monitor '{monitorKey}' will not be tracked.");
+                    Console.WriteLine($"[CronRadar] Warning: {CronRadarConstants.ApiKeyEnvironmentVariable} environment variable not set. Monitor '{monitorKey}' will not be tracked.");
                     return;
                 }
 
@@ -56,8 +157,9 @@ namespace CronRadar
                     SendPingInternal(monitorKey, apiKey);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                LogError($"Failed to monitor '{monitorKey}'", ex);
                 // Never throw - protect user's job execution
             }
         }
@@ -68,19 +170,23 @@ namespace CronRadar
         /// </summary>
         /// <param name="monitorKey">The monitor key identifying your job</param>
         /// <param name="schedule">Optional cron schedule for auto-registration if monitor doesn't exist</param>
-        public static async Task MonitorAsync(string monitorKey, string? schedule = null)
+        /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
+        public static async Task MonitorAsync(string monitorKey, string? schedule = null, string? apiKey = null)
         {
             try
             {
-                var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
+                if (!ValidateMonitorKey(monitorKey)) return;
+                if (!ValidateSchedule(schedule)) return;
+
+                apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey))
                 {
-                    Console.WriteLine($"[CronRadar] Warning: CRONRADAR_API_KEY environment variable not set. Monitor '{monitorKey}' will not be tracked.");
+                    Console.WriteLine($"[CronRadar] Warning: {CronRadarConstants.ApiKeyEnvironmentVariable} environment variable not set. Monitor '{monitorKey}' will not be tracked.");
                     return;
                 }
 
                 // Try to ping
-                var response = await SendPingInternalAsync(monitorKey, apiKey);
+                var response = await SendPingInternalAsync(monitorKey, apiKey).ConfigureAwait(false);
 
                 // Self-healing: if monitor doesn't exist and schedule provided, create it
                 if (response?.StatusCode == System.Net.HttpStatusCode.NotFound && !string.IsNullOrEmpty(schedule))
@@ -88,14 +194,15 @@ namespace CronRadar
                     Console.WriteLine($"[CronRadar] Monitor '{monitorKey}' not found. Auto-registering with schedule '{schedule}'...");
 
                     var source = DetectSource();
-                    await SyncMonitorAsync(monitorKey, schedule, source);
+                    await SyncMonitorAsync(monitorKey, schedule, source).ConfigureAwait(false);
 
                     // Retry ping
-                    await SendPingInternalAsync(monitorKey, apiKey);
+                    await SendPingInternalAsync(monitorKey, apiKey).ConfigureAwait(false);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                LogError($"Failed to monitor '{monitorKey}'", ex);
                 // Never throw - protect user's job execution
             }
         }
@@ -110,17 +217,21 @@ namespace CronRadar
         /// </summary>
         /// <param name="monitorKey">The monitor key identifying your job</param>
         /// <param name="schedule">Optional cron schedule for auto-registration</param>
-        public static void StartJob(string monitorKey, string? schedule = null)
+        /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
+        public static void StartJob(string monitorKey, string? schedule = null, string? apiKey = null)
         {
             try
             {
-                var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
+                if (!ValidateMonitorKey(monitorKey)) return;
+
+                apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey)) return;
 
                 SendLifecyclePing(monitorKey, "start", apiKey, schedule);
             }
-            catch
+            catch (Exception ex)
             {
+                LogError($"Failed to send start signal for '{monitorKey}'", ex);
                 // Never throw - protect user's job execution
             }
         }
@@ -128,17 +239,21 @@ namespace CronRadar
         /// <summary>
         /// Asynchronously signal that a job has started executing.
         /// </summary>
-        public static async Task StartJobAsync(string monitorKey, string? schedule = null)
+        /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
+        public static async Task StartJobAsync(string monitorKey, string? schedule = null, string? apiKey = null)
         {
             try
             {
-                var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
+                if (!ValidateMonitorKey(monitorKey)) return;
+
+                apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey)) return;
 
-                await SendLifecyclePingAsync(monitorKey, "start", apiKey, schedule);
+                await SendLifecyclePingAsync(monitorKey, "start", apiKey, schedule).ConfigureAwait(false);
             }
-            catch
+            catch (Exception ex)
             {
+                LogError($"Failed to send start signal for '{monitorKey}'", ex);
                 // Never throw - protect user's job execution
             }
         }
@@ -148,17 +263,21 @@ namespace CronRadar
         /// Used for lifecycle tracking to record completion time and calculate duration.
         /// </summary>
         /// <param name="monitorKey">The monitor key identifying your job</param>
-        public static void CompleteJob(string monitorKey)
+        /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
+        public static void CompleteJob(string monitorKey, string? apiKey = null)
         {
             try
             {
-                var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
+                if (!ValidateMonitorKey(monitorKey)) return;
+
+                apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey)) return;
 
                 SendLifecyclePing(monitorKey, "complete", apiKey);
             }
-            catch
+            catch (Exception ex)
             {
+                LogError($"Failed to send complete signal for '{monitorKey}'", ex);
                 // Never throw - protect user's job execution
             }
         }
@@ -166,17 +285,21 @@ namespace CronRadar
         /// <summary>
         /// Asynchronously signal that a job has completed successfully.
         /// </summary>
-        public static async Task CompleteJobAsync(string monitorKey)
+        /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
+        public static async Task CompleteJobAsync(string monitorKey, string? apiKey = null)
         {
             try
             {
-                var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
+                if (!ValidateMonitorKey(monitorKey)) return;
+
+                apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey)) return;
 
-                await SendLifecyclePingAsync(monitorKey, "complete", apiKey);
+                await SendLifecyclePingAsync(monitorKey, "complete", apiKey).ConfigureAwait(false);
             }
-            catch
+            catch (Exception ex)
             {
+                LogError($"Failed to send complete signal for '{monitorKey}'", ex);
                 // Never throw - protect user's job execution
             }
         }
@@ -187,17 +310,21 @@ namespace CronRadar
         /// </summary>
         /// <param name="monitorKey">The monitor key identifying your job</param>
         /// <param name="message">Optional failure message for debugging</param>
-        public static void FailJob(string monitorKey, string? message = null)
+        /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
+        public static void FailJob(string monitorKey, string? message = null, string? apiKey = null)
         {
             try
             {
-                var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
+                if (!ValidateMonitorKey(monitorKey)) return;
+
+                apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey)) return;
 
                 SendLifecyclePing(monitorKey, "fail", apiKey, message: message);
             }
-            catch
+            catch (Exception ex)
             {
+                LogError($"Failed to send fail signal for '{monitorKey}'", ex);
                 // Never throw - protect user's job execution
             }
         }
@@ -205,17 +332,21 @@ namespace CronRadar
         /// <summary>
         /// Asynchronously signal that a job has failed.
         /// </summary>
-        public static async Task FailJobAsync(string monitorKey, string? message = null)
+        /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
+        public static async Task FailJobAsync(string monitorKey, string? message = null, string? apiKey = null)
         {
             try
             {
-                var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
+                if (!ValidateMonitorKey(monitorKey)) return;
+
+                apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey)) return;
 
-                await SendLifecyclePingAsync(monitorKey, "fail", apiKey, message: message);
+                await SendLifecyclePingAsync(monitorKey, "fail", apiKey, message: message).ConfigureAwait(false);
             }
-            catch
+            catch (Exception ex)
             {
+                LogError($"Failed to send fail signal for '{monitorKey}'", ex);
                 // Never throw - protect user's job execution
             }
         }
@@ -227,17 +358,18 @@ namespace CronRadar
         /// <param name="monitorKey">The monitor key identifying your job</param>
         /// <param name="action">The action to wrap</param>
         /// <param name="schedule">Optional cron schedule for auto-registration</param>
-        public static void Wrap(string monitorKey, Action action, string? schedule = null)
+        /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
+        public static void Wrap(string monitorKey, Action action, string? schedule = null, string? apiKey = null)
         {
-            StartJob(monitorKey, schedule);
+            StartJob(monitorKey, schedule, apiKey);
             try
             {
                 action();
-                CompleteJob(monitorKey);
+                CompleteJob(monitorKey, apiKey);
             }
             catch (Exception e)
             {
-                FailJob(monitorKey, e.Message);
+                FailJob(monitorKey, e.Message, apiKey);
                 throw; // Re-throw to preserve original behavior
             }
         }
@@ -249,17 +381,18 @@ namespace CronRadar
         /// <param name="monitorKey">The monitor key identifying your job</param>
         /// <param name="func">The async function to wrap</param>
         /// <param name="schedule">Optional cron schedule for auto-registration</param>
-        public static async Task WrapAsync(string monitorKey, Func<Task> func, string? schedule = null)
+        /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
+        public static async Task WrapAsync(string monitorKey, Func<Task> func, string? schedule = null, string? apiKey = null)
         {
-            await StartJobAsync(monitorKey, schedule);
+            await StartJobAsync(monitorKey, schedule, apiKey).ConfigureAwait(false);
             try
             {
-                await func();
-                await CompleteJobAsync(monitorKey);
+                await func().ConfigureAwait(false);
+                await CompleteJobAsync(monitorKey, apiKey).ConfigureAwait(false);
             }
             catch (Exception e)
             {
-                await FailJobAsync(monitorKey, e.Message);
+                await FailJobAsync(monitorKey, e.Message, apiKey).ConfigureAwait(false);
                 throw; // Re-throw to preserve original behavior
             }
         }
@@ -267,18 +400,19 @@ namespace CronRadar
         /// <summary>
         /// Wrap an async function that returns a value with automatic lifecycle monitoring.
         /// </summary>
-        public static async Task<T> WrapAsync<T>(string monitorKey, Func<Task<T>> func, string? schedule = null)
+        /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
+        public static async Task<T> WrapAsync<T>(string monitorKey, Func<Task<T>> func, string? schedule = null, string? apiKey = null)
         {
-            await StartJobAsync(monitorKey, schedule);
+            await StartJobAsync(monitorKey, schedule, apiKey).ConfigureAwait(false);
             try
             {
-                var result = await func();
-                await CompleteJobAsync(monitorKey);
+                var result = await func().ConfigureAwait(false);
+                await CompleteJobAsync(monitorKey, apiKey).ConfigureAwait(false);
                 return result;
             }
             catch (Exception e)
             {
-                await FailJobAsync(monitorKey, e.Message);
+                await FailJobAsync(monitorKey, e.Message, apiKey).ConfigureAwait(false);
                 throw; // Re-throw to preserve original behavior
             }
         }
@@ -295,14 +429,27 @@ namespace CronRadar
         /// <param name="schedule">Cron expression defining when the job runs</param>
         /// <param name="source">Source framework (e.g., "hangfire", "celery"). Auto-detected if null.</param>
         /// <param name="name">Human-readable name. Generated from key if null.</param>
-        public static void SyncMonitor(string monitorKey, string schedule, string? source = null, string? name = null)
+        /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
+        public static void SyncMonitor(string monitorKey, string schedule, string? source = null, string? name = null, string? apiKey = null)
         {
             try
             {
-                var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
+                if (!ValidateMonitorKey(monitorKey)) return;
+                if (!ValidateSchedule(schedule))
+                {
+                    LogError("Schedule validation failed");
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(schedule))
+                {
+                    LogError("Schedule cannot be null or empty");
+                    return;
+                }
+
+                apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey))
                 {
-                    Console.WriteLine($"[CronRadar] Warning: CRONRADAR_API_KEY environment variable not set. Monitor '{monitorKey}' will not be synced.");
+                    Console.WriteLine($"[CronRadar] Warning: {CronRadarConstants.ApiKeyEnvironmentVariable} environment variable not set. Monitor '{monitorKey}' will not be synced.");
                     return;
                 }
 
@@ -319,7 +466,7 @@ namespace CronRadar
                             key = monitorKey,
                             name = name,
                             schedule = schedule,
-                            gracePeriod = 60
+                            gracePeriod = DefaultGracePeriodSeconds
                         }
                     }
                 };
@@ -332,7 +479,7 @@ namespace CronRadar
                 request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
                 request.Content = content;
 
-                var response = _http.SendAsync(request).Result;
+                var response = GetHttpClient().SendAsync(request).GetAwaiter().GetResult();
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -345,7 +492,7 @@ namespace CronRadar
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CronRadar] Error syncing monitor '{monitorKey}': {ex.Message}");
+                LogError($"Error syncing monitor '{monitorKey}'", ex);
                 // Never throw - protect user's job execution
             }
         }
@@ -358,14 +505,27 @@ namespace CronRadar
         /// <param name="schedule">Cron expression defining when the job runs</param>
         /// <param name="source">Source framework (e.g., "hangfire", "celery"). Auto-detected if null.</param>
         /// <param name="name">Human-readable name. Generated from key if null.</param>
-        public static async Task SyncMonitorAsync(string monitorKey, string schedule, string? source = null, string? name = null)
+        /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
+        public static async Task SyncMonitorAsync(string monitorKey, string schedule, string? source = null, string? name = null, string? apiKey = null)
         {
             try
             {
-                var apiKey = Environment.GetEnvironmentVariable("CRONRADAR_API_KEY") ?? "";
+                if (!ValidateMonitorKey(monitorKey)) return;
+                if (!ValidateSchedule(schedule))
+                {
+                    LogError("Schedule validation failed");
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(schedule))
+                {
+                    LogError("Schedule cannot be null or empty");
+                    return;
+                }
+
+                apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey))
                 {
-                    Console.WriteLine($"[CronRadar] Warning: CRONRADAR_API_KEY environment variable not set. Monitor '{monitorKey}' will not be synced.");
+                    Console.WriteLine($"[CronRadar] Warning: {CronRadarConstants.ApiKeyEnvironmentVariable} environment variable not set. Monitor '{monitorKey}' will not be synced.");
                     return;
                 }
 
@@ -382,7 +542,7 @@ namespace CronRadar
                             key = monitorKey,
                             name = name,
                             schedule = schedule,
-                            gracePeriod = 60
+                            gracePeriod = DefaultGracePeriodSeconds
                         }
                     }
                 };
@@ -395,7 +555,7 @@ namespace CronRadar
                 request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
                 request.Content = content;
 
-                var response = await _http.SendAsync(request);
+                var response = await GetHttpClient().SendAsync(request).ConfigureAwait(false);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -408,7 +568,7 @@ namespace CronRadar
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CronRadar] Error syncing monitor '{monitorKey}': {ex.Message}");
+                LogError($"Error syncing monitor '{monitorKey}'", ex);
                 // Never throw - protect user's job execution
             }
         }
@@ -425,10 +585,11 @@ namespace CronRadar
                 var request = new HttpRequestMessage(HttpMethod.Get, $"/ping/{Uri.EscapeDataString(monitorKey)}");
                 request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
 
-                return _http.SendAsync(request).Result;
+                return GetHttpClient().SendAsync(request).GetAwaiter().GetResult();
             }
-            catch
+            catch (Exception ex)
             {
+                LogError($"Failed to send ping for '{monitorKey}'", ex);
                 return null;
             }
         }
@@ -441,10 +602,11 @@ namespace CronRadar
                 var request = new HttpRequestMessage(HttpMethod.Get, $"/ping/{Uri.EscapeDataString(monitorKey)}");
                 request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
 
-                return await _http.SendAsync(request);
+                return await GetHttpClient().SendAsync(request).ConfigureAwait(false);
             }
-            catch
+            catch (Exception ex)
             {
+                LogError($"Failed to send ping for '{monitorKey}'", ex);
                 return null;
             }
         }
@@ -470,11 +632,11 @@ namespace CronRadar
                 var request = new HttpRequestMessage(HttpMethod.Post, url);
                 request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
 
-                _http.SendAsync(request).Wait();
+                GetHttpClient().SendAsync(request).GetAwaiter().GetResult();
             }
-            catch
+            catch (Exception ex)
             {
-                // Silently fail to protect job execution
+                LogError($"Failed to send {endpoint} ping for '{monitorKey}'", ex);
             }
         }
 
@@ -499,32 +661,47 @@ namespace CronRadar
                 var request = new HttpRequestMessage(HttpMethod.Post, url);
                 request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
 
-                await _http.SendAsync(request);
+                await GetHttpClient().SendAsync(request).ConfigureAwait(false);
             }
-            catch
+            catch (Exception ex)
             {
-                // Silently fail to protect job execution
+                LogError($"Failed to send {endpoint} ping for '{monitorKey}'", ex);
             }
         }
 
         /// <summary>
         /// Detect the calling source/framework based on assembly names and stack trace.
+        /// Cached after first detection to avoid reflection overhead.
         /// </summary>
         private static string DetectSource()
         {
-            try
+            // Return cached value if available
+            if (_cachedSource != null)
             {
+                return _cachedSource;
+            }
+
+            lock (_sourceLock)
+            {
+                // Double-check after acquiring lock
+                if (_cachedSource != null)
+                {
+                    return _cachedSource;
+                }
+
+                try
+                {
                 // Check calling assembly first
                 var callingAssembly = Assembly.GetCallingAssembly();
                 var assemblyName = callingAssembly?.GetName()?.Name?.ToLowerInvariant() ?? "";
 
                 // Check for known extension assemblies
-                if (assemblyName.Contains("cronradar.hangfire")) return "hangfire";
-                if (assemblyName.Contains("cronradar.laravel")) return "laravel";
-                if (assemblyName.Contains("cronradar.celery")) return "celery";
-                if (assemblyName.Contains("cronradar.sidekiq")) return "sidekiq";
-                if (assemblyName.Contains("cronradar.bull")) return "bull";
-                if (assemblyName.Contains("cronradar.quartz")) return "quartz";
+                if (assemblyName.Contains("cronradar.hangfire")) { _cachedSource = "hangfire"; return _cachedSource; }
+                if (assemblyName.Contains("cronradar.laravel")) { _cachedSource = "laravel"; return _cachedSource; }
+                if (assemblyName.Contains("cronradar.celery")) { _cachedSource = "celery"; return _cachedSource; }
+                if (assemblyName.Contains("cronradar.sidekiq")) { _cachedSource = "sidekiq"; return _cachedSource; }
+                if (assemblyName.Contains("cronradar.bull")) { _cachedSource = "bull"; return _cachedSource; }
+                if (assemblyName.Contains("cronradar.quartz")) { _cachedSource = "quartz"; return _cachedSource; }
 
                 // Check stack trace for framework signatures
                 var stackTrace = new StackTrace();
@@ -532,10 +709,10 @@ namespace CronRadar
                 {
                     var typeName = frame?.GetMethod()?.DeclaringType?.FullName?.ToLowerInvariant() ?? "";
 
-                    if (typeName.Contains("hangfire")) return "hangfire-direct";
-                    if (typeName.Contains("quartz")) return "quartz-direct";
-                    if (typeName.Contains("coravel")) return "coravel-direct";
-                    if (typeName.Contains("ncron")) return "ncron-direct";
+                    if (typeName.Contains("hangfire")) { _cachedSource = "hangfire-direct"; return _cachedSource; }
+                    if (typeName.Contains("quartz")) { _cachedSource = "quartz-direct"; return _cachedSource; }
+                    if (typeName.Contains("coravel")) { _cachedSource = "coravel-direct"; return _cachedSource; }
+                    if (typeName.Contains("ncron")) { _cachedSource = "ncron-direct"; return _cachedSource; }
                 }
 
                 // Check loaded assemblies for framework presence
@@ -543,16 +720,20 @@ namespace CronRadar
                 foreach (var assembly in loadedAssemblies)
                 {
                     var name = assembly.GetName()?.Name?.ToLowerInvariant() ?? "";
-                    if (name.StartsWith("hangfire")) return "hangfire-env";
-                    if (name.StartsWith("quartz")) return "quartz-env";
+                    if (name.StartsWith("hangfire")) { _cachedSource = "hangfire-env"; return _cachedSource; }
+                    if (name.StartsWith("quartz")) { _cachedSource = "quartz-env"; return _cachedSource; }
                 }
-            }
-            catch
-            {
-                // If detection fails, fall back to manual
-            }
+                }
+                catch (Exception ex)
+                {
+                    LogError("Failed to detect source framework", ex);
+                    // If detection fails, fall back to manual
+                }
 
-            return "manual";
+                // Cache and return default
+                _cachedSource = "manual";
+                return _cachedSource;
+            }
         }
 
         /// <summary>
