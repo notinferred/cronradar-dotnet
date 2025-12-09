@@ -615,24 +615,18 @@ namespace CronRadar
         {
             try
             {
-                // Build URL
-                var url = $"/ping/{Uri.EscapeDataString(monitorKey)}/{endpoint}";
+                var response = SendLifecyclePingInternal(monitorKey, endpoint, apiKey, schedule, message);
 
-                // Add query parameters
-                var queryParams = new List<string>();
-                if (!string.IsNullOrEmpty(schedule))
-                    queryParams.Add($"schedule={Uri.EscapeDataString(schedule)}");
-                if (!string.IsNullOrEmpty(message))
-                    queryParams.Add($"message={Uri.EscapeDataString(message)}");
+                // Self-healing: if monitor doesn't exist and schedule provided, create it
+                if (response?.StatusCode == System.Net.HttpStatusCode.NotFound && !string.IsNullOrEmpty(schedule))
+                {
+                    Console.WriteLine($"[CronRadar] Monitor '{monitorKey}' not found. Auto-registering...");
+                    var source = DetectSource();
+                    SyncMonitor(monitorKey, schedule, source, apiKey: apiKey);
 
-                if (queryParams.Count > 0)
-                    url += "?" + string.Join("&", queryParams);
-
-                var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{apiKey}:"));
-                var request = new HttpRequestMessage(HttpMethod.Post, url);
-                request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
-
-                GetHttpClient().SendAsync(request).GetAwaiter().GetResult();
+                    // Retry the lifecycle ping
+                    SendLifecyclePingInternal(monitorKey, endpoint, apiKey, schedule, message);
+                }
             }
             catch (Exception ex)
             {
@@ -640,7 +634,7 @@ namespace CronRadar
             }
         }
 
-        private static async Task SendLifecyclePingAsync(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null)
+        private static HttpResponseMessage? SendLifecyclePingInternal(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null)
         {
             try
             {
@@ -661,11 +655,65 @@ namespace CronRadar
                 var request = new HttpRequestMessage(HttpMethod.Post, url);
                 request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
 
-                await GetHttpClient().SendAsync(request).ConfigureAwait(false);
+                return GetHttpClient().SendAsync(request).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
                 LogError($"Failed to send {endpoint} ping for '{monitorKey}'", ex);
+                return null;
+            }
+        }
+
+        private static async Task SendLifecyclePingAsync(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null)
+        {
+            try
+            {
+                var response = await SendLifecyclePingInternalAsync(monitorKey, endpoint, apiKey, schedule, message).ConfigureAwait(false);
+
+                // Self-healing: if monitor doesn't exist and schedule provided, create it
+                if (response?.StatusCode == System.Net.HttpStatusCode.NotFound && !string.IsNullOrEmpty(schedule))
+                {
+                    Console.WriteLine($"[CronRadar] Monitor '{monitorKey}' not found. Auto-registering...");
+                    var source = DetectSource();
+                    await SyncMonitorAsync(monitorKey, schedule, source, apiKey: apiKey).ConfigureAwait(false);
+
+                    // Retry the lifecycle ping
+                    await SendLifecyclePingInternalAsync(monitorKey, endpoint, apiKey, schedule, message).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogError($"Failed to send {endpoint} ping for '{monitorKey}'", ex);
+            }
+        }
+
+        private static async Task<HttpResponseMessage?> SendLifecyclePingInternalAsync(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null)
+        {
+            try
+            {
+                // Build URL
+                var url = $"/ping/{Uri.EscapeDataString(monitorKey)}/{endpoint}";
+
+                // Add query parameters
+                var queryParams = new List<string>();
+                if (!string.IsNullOrEmpty(schedule))
+                    queryParams.Add($"schedule={Uri.EscapeDataString(schedule)}");
+                if (!string.IsNullOrEmpty(message))
+                    queryParams.Add($"message={Uri.EscapeDataString(message)}");
+
+                if (queryParams.Count > 0)
+                    url += "?" + string.Join("&", queryParams);
+
+                var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{apiKey}:"));
+                var request = new HttpRequestMessage(HttpMethod.Post, url);
+                request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
+
+                return await GetHttpClient().SendAsync(request).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                LogError($"Failed to send {endpoint} ping for '{monitorKey}'", ex);
+                return null;
             }
         }
 

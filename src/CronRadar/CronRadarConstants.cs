@@ -1,5 +1,3 @@
-using System;
-
 namespace CronRadar
 {
     /// <summary>
@@ -24,10 +22,8 @@ namespace CronRadar
 
         /// <summary>
         /// Default CronRadar API base URL.
-        /// Can be overridden via CRONRADAR_BASE_URL environment variable.
         /// </summary>
-        public static string DefaultBaseUrl =>
-            Environment.GetEnvironmentVariable("CRONRADAR_BASE_URL") ?? "https://cron.life";
+        public const string DefaultBaseUrl = "https://cron.life";
 
         /// <summary>
         /// Environment variable name for API key.
@@ -38,10 +34,5 @@ namespace CronRadar
         /// Environment variable name for debug logging.
         /// </summary>
         public const string DebugEnvironmentVariable = "CRONRADAR_DEBUG";
-
-        /// <summary>
-        /// Environment variable name for custom base URL.
-        /// </summary>
-        public const string BaseUrlEnvironmentVariable = "CRONRADAR_BASE_URL";
     }
 }
