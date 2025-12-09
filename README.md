@@ -67,10 +67,13 @@ CronRadar.Monitor("job-name", apiKey: "ck_app_xxxxx");
 CRONRADAR_DEBUG=true
 ```
 
-## Framework Extensions
+## Links
 
-- **Hangfire**: `dotnet add package CronRadar.Hangfire`
+- [Documentation](https://docs.cronradar.com)
+- [NuGet](https://www.nuget.org/packages/CronRadar)
+
+**Extensions:** [Hangfire](https://www.nuget.org/packages/CronRadar.Hangfire) | [Quartz.NET](https://www.nuget.org/packages/CronRadar.Quartz)
 
 ## License
 
-Proprietary - © 2025 CronRadar. All rights reserved.
+© 2025 [CronRadar](https://cronradar.com) - See [LICENSE](./LICENSE)
