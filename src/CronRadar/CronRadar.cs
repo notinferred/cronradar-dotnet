@@ -581,9 +581,9 @@ namespace CronRadar
         {
             try
             {
-                var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{apiKey}:"));
-                var request = new HttpRequestMessage(HttpMethod.Get, $"/ping/{Uri.EscapeDataString(monitorKey)}");
-                request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
+                // URL-based auth: /ping/{monitorKey}/{apiKey}
+                var url = $"/ping/{Uri.EscapeDataString(monitorKey)}/{Uri.EscapeDataString(apiKey)}";
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
 
                 return GetHttpClient().SendAsync(request).GetAwaiter().GetResult();
             }
@@ -598,9 +598,9 @@ namespace CronRadar
         {
             try
             {
-                var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{apiKey}:"));
-                var request = new HttpRequestMessage(HttpMethod.Get, $"/ping/{Uri.EscapeDataString(monitorKey)}");
-                request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
+                // URL-based auth: /ping/{monitorKey}/{apiKey}
+                var url = $"/ping/{Uri.EscapeDataString(monitorKey)}/{Uri.EscapeDataString(apiKey)}";
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
 
                 return await GetHttpClient().SendAsync(request).ConfigureAwait(false);
             }
@@ -638,8 +638,8 @@ namespace CronRadar
         {
             try
             {
-                // Build URL
-                var url = $"/ping/{Uri.EscapeDataString(monitorKey)}/{endpoint}";
+                // URL-based auth: /ping/{monitorKey}/{apiKey}/{endpoint}
+                var url = $"/ping/{Uri.EscapeDataString(monitorKey)}/{Uri.EscapeDataString(apiKey)}/{endpoint}";
 
                 // Add query parameters
                 var queryParams = new List<string>();
@@ -651,9 +651,7 @@ namespace CronRadar
                 if (queryParams.Count > 0)
                     url += "?" + string.Join("&", queryParams);
 
-                var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{apiKey}:"));
                 var request = new HttpRequestMessage(HttpMethod.Post, url);
-                request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
 
                 return GetHttpClient().SendAsync(request).GetAwaiter().GetResult();
             }
@@ -691,8 +689,8 @@ namespace CronRadar
         {
             try
             {
-                // Build URL
-                var url = $"/ping/{Uri.EscapeDataString(monitorKey)}/{endpoint}";
+                // URL-based auth: /ping/{monitorKey}/{apiKey}/{endpoint}
+                var url = $"/ping/{Uri.EscapeDataString(monitorKey)}/{Uri.EscapeDataString(apiKey)}/{endpoint}";
 
                 // Add query parameters
                 var queryParams = new List<string>();
@@ -704,9 +702,7 @@ namespace CronRadar
                 if (queryParams.Count > 0)
                     url += "?" + string.Join("&", queryParams);
 
-                var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{apiKey}:"));
                 var request = new HttpRequestMessage(HttpMethod.Post, url);
-                request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
 
                 return await GetHttpClient().SendAsync(request).ConfigureAwait(false);
             }
