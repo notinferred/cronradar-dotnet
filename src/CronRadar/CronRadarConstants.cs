@@ -21,9 +21,9 @@ namespace CronRadar
         public const int DefaultGracePeriodSeconds = 60;
 
         /// <summary>
-        /// Default CronRadar API base URL.
+        /// CronRadar API base URL.
         /// </summary>
-        public const string DefaultBaseUrl = "https://cron.life";
+        internal const string BaseUrl = "https://cron.life";
 
         /// <summary>
         /// Environment variable name for API key.

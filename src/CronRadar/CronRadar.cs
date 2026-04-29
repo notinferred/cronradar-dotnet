@@ -39,13 +39,6 @@ namespace CronRadar
         /// </summary>
         public static int DefaultGracePeriodSeconds { get; set; } = CronRadarConstants.DefaultGracePeriodSeconds;
 
-        /// <summary>
-        /// Base URL for CronRadar API. Default: https://cron.life
-        /// Can be overridden via CRONRADAR_BASE_URL environment variable or by setting this property.
-        /// Changes after first HttpClient creation will not take effect.
-        /// </summary>
-        public static string BaseUrl { get; set; } = CronRadarConstants.DefaultBaseUrl;
-
         private static HttpClient GetHttpClient()
         {
             if (_httpClient == null)
@@ -56,7 +49,7 @@ namespace CronRadar
                     {
                         _httpClient = new HttpClient
                         {
-                            BaseAddress = new Uri(BaseUrl),
+                            BaseAddress = new Uri(CronRadarConstants.BaseUrl),
                             Timeout = TimeSpan.FromSeconds(TimeoutSeconds)
                         };
                     }
