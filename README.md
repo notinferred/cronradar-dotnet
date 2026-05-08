@@ -50,6 +50,27 @@ CronRadar.Wrap("daily-backup", () =>
 }, schedule: "0 2 * * *");
 ```
 
+## Async Methods (Recommended)
+
+All methods have async versions for non-blocking execution:
+
+```csharp
+// Simple monitoring
+await CronRadar.MonitorAsync("daily-backup");
+await CronRadar.MonitorAsync("daily-backup", schedule: "0 2 * * *");
+
+// Lifecycle tracking
+await CronRadar.StartJobAsync("daily-backup", schedule: "0 2 * * *");
+await CronRadar.CompleteJobAsync("daily-backup");
+await CronRadar.FailJobAsync("daily-backup", errorMessage);
+
+// Async wrapper
+await CronRadar.WrapAsync("daily-backup", async () =>
+{
+    await RunBackupAsync();
+}, schedule: "0 2 * * *");
+```
+
 ## Configuration
 
 **API Key** (required):
