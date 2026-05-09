@@ -99,24 +99,24 @@ catch (Exception ex)
 
 All public methods exist as both sync (`Monitor`) and async (`MonitorAsync`) overloads. Async is recommended.
 
-### `MonitorAsync(key, schedule?, gracePeriod?, apiKey?)`
+### `MonitorAsync(monitorKey, schedule?, apiKey?)`
 
 Records a successful execution. Returns `Task`.
 
 ```csharp
 await CronRadar.MonitorAsync("daily-backup");
 await CronRadar.MonitorAsync("daily-backup", schedule: "0 2 * * *");
-await CronRadar.MonitorAsync("daily-backup", schedule: "0 2 * * *", gracePeriod: 120);
 ```
 
 | Parameter | Type | Required | Notes |
 |---|---|---|---|
-| `key` | `string` | yes | Monitor key. Lowercase, kebab/snake/dot-case. Max 64 chars. |
+| `monitorKey` | `string` | yes | Monitor key. Lowercase, kebab/snake/dot-case. Max 200 chars. |
 | `schedule` | `string?` | optional | Standard 5-field cron expression. Required on the *first* ping for self-healing registration. |
-| `gracePeriod` | `int?` | optional | Seconds. Default: 60. |
 | `apiKey` | `string?` | optional | Override the env-var-supplied API key for this call. |
 
-Throws: never. Network errors and 4xx/5xx responses are caught and logged.
+Throws: never. Network errors and 4xx/5xx responses are caught and logged when `DebugLoggingEnabled` is true.
+
+Grace period is set globally via the static property `CronRadar.DefaultGracePeriodSeconds` (default 60), or per-monitor via `SyncMonitor`. It's not a per-call argument.
 
 ### `StartJobAsync(key, schedule?)`
 
@@ -154,27 +154,22 @@ await CronRadar.FailJobAsync("daily-backup", "Database connection refused");
 
 Triggers an immediate alert (no grace period). The message appears in the alert payload.
 
-### `WrapAsync(key, fn, schedule?, gracePeriod?)`
+### `WrapAsync(monitorKey, fn, schedule?, apiKey?)`
 
-Wraps an async delegate with full lifecycle tracking. Returns `Task` (or `Task<T>` for the generic overload).
+Wraps an async delegate with full lifecycle tracking. Returns `Task`.
 
 ```csharp
 await CronRadar.WrapAsync("daily-backup", async () => { /* work */ }, schedule: "0 2 * * *");
-
-var result = await CronRadar.WrapAsync<int>("calc-stats", async () =>
-{
-    return await ComputeStatsAsync();
-}, schedule: "0 */6 * * *");
 ```
 
 | Parameter | Type | Required | Notes |
 |---|---|---|---|
-| `key` | `string` | yes | Monitor key. |
-| `fn` | `Func<Task>` / `Func<Task<T>>` | yes | The delegate to instrument. |
+| `monitorKey` | `string` | yes | Monitor key. |
+| `fn` | `Func<Task>` | yes | The async delegate to instrument. |
 | `schedule` | `string?` | optional | Cron expression for self-healing registration. |
-| `gracePeriod` | `int?` | optional | Seconds. Default: 60. |
+| `apiKey` | `string?` | optional | Override the env-var-supplied API key for this call. |
 
-The wrapper returns whatever `fn` returns. If `fn` throws, the wrapper re-throws after recording the failure. Monitoring never swallows your exceptions.
+If `fn` throws, the wrapper re-throws after recording the failure. Monitoring never swallows your exceptions. A sync `Wrap(string monitorKey, Action action, ...)` overload is also available for non-async code.
 
 ### `SyncMonitorAsync(key, schedule, source?, name?)`
 
@@ -202,9 +197,17 @@ Used internally by extensions; rarely needed in application code.
 | Environment variable | Required | Default | Purpose |
 |---|---|---|---|
 | `CRONRADAR_API_KEY` | yes | — | API key from the CronRadar dashboard. Format `ck_app_xxxxx`. |
-| `CRONRADAR_BASE_URL` | no | `https://cron.life` | Override the ingestion endpoint. Used for self-hosted or staging environments. |
-| `CRONRADAR_TIMEOUT_MS` | no | `5000` | HTTP request timeout in milliseconds. |
-| `CRONRADAR_DEBUG` | no | `false` | Set to `true` to log every request to standard output. |
+| `CRONRADAR_DEBUG` | no | `false` | Set to `true` to log every request and error to `Console.Error`. Equivalent to `CronRadar.DebugLoggingEnabled = true` in code. |
+
+Static properties on `CronRadar` for in-process tuning (must be set before the first call):
+
+| Property | Default | Purpose |
+|---|---|---|
+| `CronRadar.TimeoutSeconds` | `5` | HTTP request timeout. |
+| `CronRadar.DefaultGracePeriodSeconds` | `60` | Default grace period for newly registered monitors. |
+| `CronRadar.DebugLoggingEnabled` | follows `CRONRADAR_DEBUG` | Toggle debug logging at runtime. |
+
+The base URL is a compile-time internal constant pointing at `https://cron.life`.
 
 ## Error handling
 
