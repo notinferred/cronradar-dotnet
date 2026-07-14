@@ -21,6 +21,11 @@ namespace CronRadar
         public const int DefaultGracePeriodSeconds = 60;
 
         /// <summary>
+        /// Base SDK version, reported to the server on sync/reconcile.
+        /// </summary>
+        public const string SdkVersion = "0.1.0";
+
+        /// <summary>
         /// CronRadar API base URL.
         /// </summary>
         internal const string BaseUrl = "https://cron.life";

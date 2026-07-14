@@ -566,6 +566,84 @@ namespace CronRadar
             }
         }
 
+        /// <summary>
+        /// Reconcile the complete set of monitors for a source in a single request.
+        /// Extensions call this on startup and periodically to declare every job they
+        /// discover (the authoritative set), so dead-man coverage exists before a job
+        /// ever runs. Invalid entries are skipped, not fatal to the batch.
+        /// </summary>
+        /// <param name="monitors">The complete current set of discovered monitors for this source.</param>
+        /// <param name="source">Source framework (e.g., "hangfire", "quartz"). Auto-detected if null.</param>
+        /// <param name="version">Extension version, reported to the server. Defaults to the base SDK version.</param>
+        /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
+        public static void SyncMonitors(IEnumerable<MonitorDefinition> monitors, string? source = null, string? version = null, string? apiKey = null)
+            => SyncMonitorsAsync(monitors, source, version, apiKey).GetAwaiter().GetResult();
+
+        /// <summary>
+        /// Asynchronously reconcile the complete set of monitors for a source (see <see cref="SyncMonitors"/>).
+        /// </summary>
+        public static async Task SyncMonitorsAsync(IEnumerable<MonitorDefinition> monitors, string? source = null, string? version = null, string? apiKey = null)
+        {
+            try
+            {
+                if (monitors == null) return;
+
+                var valid = monitors
+                    .Where(m => m != null
+                                && ValidateMonitorKey(m.Key)
+                                && !string.IsNullOrWhiteSpace(m.Schedule)
+                                && ValidateSchedule(m.Schedule))
+                    .ToList();
+
+                apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
+                if (string.IsNullOrEmpty(apiKey))
+                {
+                    Console.WriteLine($"[CronRadar] Warning: {CronRadarConstants.ApiKeyEnvironmentVariable} environment variable not set. {valid.Count} monitor(s) will not be synced.");
+                    return;
+                }
+
+                source ??= DetectSource();
+
+                var syncRequest = new
+                {
+                    source = source,
+                    version = version ?? CronRadarConstants.SdkVersion,
+                    mode = "reconcile",
+                    monitors = valid.Select(m => new
+                    {
+                        key = m.Key,
+                        name = m.Name ?? GenerateReadableName(m.Key),
+                        schedule = m.Schedule,
+                        gracePeriod = m.GracePeriod ?? DefaultGracePeriodSeconds
+                    }).ToArray()
+                };
+
+                var json = JsonSerializer.Serialize(syncRequest);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{apiKey}:"));
+                var request = new HttpRequestMessage(HttpMethod.Post, "/api/sync");
+                request.Headers.TryAddWithoutValidation("Authorization", $"Basic {auth}");
+                request.Content = content;
+
+                var response = await GetHttpClient().SendAsync(request).ConfigureAwait(false);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"[CronRadar] Reconciled {valid.Count} monitor(s) for source '{source}'.");
+                }
+                else
+                {
+                    Console.WriteLine($"[CronRadar] Failed to reconcile monitors for source '{source}': {response.StatusCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogError("Error reconciling monitors", ex);
+                // Never throw - protect user's application
+            }
+        }
+
         #endregion
 
         #region Helper Methods
