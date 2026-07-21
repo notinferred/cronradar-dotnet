@@ -216,7 +216,9 @@ namespace CronRadar
         /// <param name="monitorKey">The monitor key identifying your job</param>
         /// <param name="schedule">Optional cron schedule for auto-registration</param>
         /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
-        public static void StartJob(string monitorKey, string? schedule = null, string? apiKey = null)
+        /// <param name="executionId">Optional identifier shared by every event for one logical execution.</param>
+        /// <param name="attempt">Optional zero-based scheduler retry attempt.</param>
+        public static void StartJob(string monitorKey, string? schedule = null, string? apiKey = null, string? executionId = null, int? attempt = null)
         {
             try
             {
@@ -225,7 +227,7 @@ namespace CronRadar
                 apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey)) return;
 
-                SendLifecyclePing(monitorKey, "start", apiKey, schedule);
+                SendLifecyclePing(monitorKey, "start", apiKey, schedule, executionId: executionId, attempt: attempt);
             }
             catch (Exception ex)
             {
@@ -237,8 +239,12 @@ namespace CronRadar
         /// <summary>
         /// Asynchronously signal that a job has started executing.
         /// </summary>
+        /// <param name="monitorKey">The monitor key identifying your job.</param>
+        /// <param name="schedule">Optional cron schedule for auto-registration.</param>
         /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
-        public static async Task StartJobAsync(string monitorKey, string? schedule = null, string? apiKey = null)
+        /// <param name="executionId">Optional identifier shared by every event for one logical execution.</param>
+        /// <param name="attempt">Optional zero-based scheduler retry attempt.</param>
+        public static async Task StartJobAsync(string monitorKey, string? schedule = null, string? apiKey = null, string? executionId = null, int? attempt = null)
         {
             try
             {
@@ -247,7 +253,7 @@ namespace CronRadar
                 apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey)) return;
 
-                await SendLifecyclePingAsync(monitorKey, "start", apiKey, schedule).ConfigureAwait(false);
+                await SendLifecyclePingAsync(monitorKey, "start", apiKey, schedule, executionId: executionId, attempt: attempt).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -262,7 +268,9 @@ namespace CronRadar
         /// </summary>
         /// <param name="monitorKey">The monitor key identifying your job</param>
         /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
-        public static void CompleteJob(string monitorKey, string? apiKey = null)
+        /// <param name="executionId">Optional identifier shared by every event for one logical execution.</param>
+        /// <param name="attempt">Optional zero-based scheduler retry attempt.</param>
+        public static void CompleteJob(string monitorKey, string? apiKey = null, string? executionId = null, int? attempt = null)
         {
             try
             {
@@ -271,7 +279,7 @@ namespace CronRadar
                 apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey)) return;
 
-                SendLifecyclePing(monitorKey, "complete", apiKey);
+                SendLifecyclePing(monitorKey, "complete", apiKey, executionId: executionId, attempt: attempt);
             }
             catch (Exception ex)
             {
@@ -283,8 +291,11 @@ namespace CronRadar
         /// <summary>
         /// Asynchronously signal that a job has completed successfully.
         /// </summary>
+        /// <param name="monitorKey">The monitor key identifying your job.</param>
         /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
-        public static async Task CompleteJobAsync(string monitorKey, string? apiKey = null)
+        /// <param name="executionId">Optional identifier shared by every event for one logical execution.</param>
+        /// <param name="attempt">Optional zero-based scheduler retry attempt.</param>
+        public static async Task CompleteJobAsync(string monitorKey, string? apiKey = null, string? executionId = null, int? attempt = null)
         {
             try
             {
@@ -293,7 +304,7 @@ namespace CronRadar
                 apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey)) return;
 
-                await SendLifecyclePingAsync(monitorKey, "complete", apiKey).ConfigureAwait(false);
+                await SendLifecyclePingAsync(monitorKey, "complete", apiKey, executionId: executionId, attempt: attempt).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -309,7 +320,9 @@ namespace CronRadar
         /// <param name="monitorKey">The monitor key identifying your job</param>
         /// <param name="message">Optional failure message for debugging</param>
         /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
-        public static void FailJob(string monitorKey, string? message = null, string? apiKey = null)
+        /// <param name="executionId">Optional identifier shared by every event for one logical execution.</param>
+        /// <param name="attempt">Optional zero-based scheduler retry attempt.</param>
+        public static void FailJob(string monitorKey, string? message = null, string? apiKey = null, string? executionId = null, int? attempt = null)
         {
             try
             {
@@ -318,7 +331,7 @@ namespace CronRadar
                 apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey)) return;
 
-                SendLifecyclePing(monitorKey, "fail", apiKey, message: message);
+                SendLifecyclePing(monitorKey, "fail", apiKey, message: message, executionId: executionId, attempt: attempt);
             }
             catch (Exception ex)
             {
@@ -330,8 +343,12 @@ namespace CronRadar
         /// <summary>
         /// Asynchronously signal that a job has failed.
         /// </summary>
+        /// <param name="monitorKey">The monitor key identifying your job.</param>
+        /// <param name="message">Optional bounded failure context.</param>
         /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
-        public static async Task FailJobAsync(string monitorKey, string? message = null, string? apiKey = null)
+        /// <param name="executionId">Optional identifier shared by every event for one logical execution.</param>
+        /// <param name="attempt">Optional zero-based scheduler retry attempt.</param>
+        public static async Task FailJobAsync(string monitorKey, string? message = null, string? apiKey = null, string? executionId = null, int? attempt = null)
         {
             try
             {
@@ -340,7 +357,7 @@ namespace CronRadar
                 apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey)) return;
 
-                await SendLifecyclePingAsync(monitorKey, "fail", apiKey, message: message).ConfigureAwait(false);
+                await SendLifecyclePingAsync(monitorKey, "fail", apiKey, message: message, executionId: executionId, attempt: attempt).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -359,15 +376,16 @@ namespace CronRadar
         /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
         public static void Wrap(string monitorKey, Action action, string? schedule = null, string? apiKey = null)
         {
-            StartJob(monitorKey, schedule, apiKey);
+            var executionId = Guid.NewGuid().ToString("N");
+            StartJob(monitorKey, schedule, apiKey, executionId);
             try
             {
                 action();
-                CompleteJob(monitorKey, apiKey);
+                CompleteJob(monitorKey, apiKey, executionId);
             }
             catch (Exception e)
             {
-                FailJob(monitorKey, e.Message, apiKey);
+                FailJob(monitorKey, e.Message, apiKey, executionId);
                 throw; // Re-throw to preserve original behavior
             }
         }
@@ -382,15 +400,16 @@ namespace CronRadar
         /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
         public static async Task WrapAsync(string monitorKey, Func<Task> func, string? schedule = null, string? apiKey = null)
         {
-            await StartJobAsync(monitorKey, schedule, apiKey).ConfigureAwait(false);
+            var executionId = Guid.NewGuid().ToString("N");
+            await StartJobAsync(monitorKey, schedule, apiKey, executionId).ConfigureAwait(false);
             try
             {
                 await func().ConfigureAwait(false);
-                await CompleteJobAsync(monitorKey, apiKey).ConfigureAwait(false);
+                await CompleteJobAsync(monitorKey, apiKey, executionId).ConfigureAwait(false);
             }
             catch (Exception e)
             {
-                await FailJobAsync(monitorKey, e.Message, apiKey).ConfigureAwait(false);
+                await FailJobAsync(monitorKey, e.Message, apiKey, executionId).ConfigureAwait(false);
                 throw; // Re-throw to preserve original behavior
             }
         }
@@ -398,19 +417,23 @@ namespace CronRadar
         /// <summary>
         /// Wrap an async function that returns a value with automatic lifecycle monitoring.
         /// </summary>
+        /// <param name="monitorKey">The monitor key identifying your job.</param>
+        /// <param name="func">The asynchronous user function to execute.</param>
+        /// <param name="schedule">Optional cron schedule for auto-registration.</param>
         /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
         public static async Task<T> WrapAsync<T>(string monitorKey, Func<Task<T>> func, string? schedule = null, string? apiKey = null)
         {
-            await StartJobAsync(monitorKey, schedule, apiKey).ConfigureAwait(false);
+            var executionId = Guid.NewGuid().ToString("N");
+            await StartJobAsync(monitorKey, schedule, apiKey, executionId).ConfigureAwait(false);
             try
             {
                 var result = await func().ConfigureAwait(false);
-                await CompleteJobAsync(monitorKey, apiKey).ConfigureAwait(false);
+                await CompleteJobAsync(monitorKey, apiKey, executionId).ConfigureAwait(false);
                 return result;
             }
             catch (Exception e)
             {
-                await FailJobAsync(monitorKey, e.Message, apiKey).ConfigureAwait(false);
+                await FailJobAsync(monitorKey, e.Message, apiKey, executionId).ConfigureAwait(false);
                 throw; // Re-throw to preserve original behavior
             }
         }
@@ -710,11 +733,11 @@ namespace CronRadar
             }
         }
 
-        private static void SendLifecyclePing(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null)
+        private static void SendLifecyclePing(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null, string? executionId = null, int? attempt = null)
         {
             try
             {
-                var response = SendLifecyclePingInternal(monitorKey, endpoint, apiKey, schedule, message);
+                var response = SendLifecyclePingInternal(monitorKey, endpoint, apiKey, schedule, message, executionId, attempt);
 
                 // Self-healing: if monitor doesn't exist and schedule provided, create it
                 if (response?.StatusCode == System.Net.HttpStatusCode.NotFound && !string.IsNullOrEmpty(schedule))
@@ -724,7 +747,7 @@ namespace CronRadar
                     SyncMonitor(monitorKey, schedule, source, apiKey: apiKey);
 
                     // Retry the lifecycle ping
-                    SendLifecyclePingInternal(monitorKey, endpoint, apiKey, schedule, message);
+                    SendLifecyclePingInternal(monitorKey, endpoint, apiKey, schedule, message, executionId, attempt);
                 }
             }
             catch (Exception ex)
@@ -733,7 +756,7 @@ namespace CronRadar
             }
         }
 
-        private static HttpResponseMessage? SendLifecyclePingInternal(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null)
+        private static HttpResponseMessage? SendLifecyclePingInternal(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null, string? executionId = null, int? attempt = null)
         {
             try
             {
@@ -746,6 +769,10 @@ namespace CronRadar
                     queryParams.Add($"schedule={Uri.EscapeDataString(schedule)}");
                 if (!string.IsNullOrEmpty(message))
                     queryParams.Add($"message={Uri.EscapeDataString(message)}");
+                if (!string.IsNullOrWhiteSpace(executionId))
+                    queryParams.Add($"run_id={Uri.EscapeDataString(executionId)}");
+                if (attempt.HasValue)
+                    queryParams.Add($"attempt={attempt.Value}");
 
                 if (queryParams.Count > 0)
                     url += "?" + string.Join("&", queryParams);
@@ -761,11 +788,11 @@ namespace CronRadar
             }
         }
 
-        private static async Task SendLifecyclePingAsync(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null)
+        private static async Task SendLifecyclePingAsync(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null, string? executionId = null, int? attempt = null)
         {
             try
             {
-                var response = await SendLifecyclePingInternalAsync(monitorKey, endpoint, apiKey, schedule, message).ConfigureAwait(false);
+                var response = await SendLifecyclePingInternalAsync(monitorKey, endpoint, apiKey, schedule, message, executionId, attempt).ConfigureAwait(false);
 
                 // Self-healing: if monitor doesn't exist and schedule provided, create it
                 if (response?.StatusCode == System.Net.HttpStatusCode.NotFound && !string.IsNullOrEmpty(schedule))
@@ -775,7 +802,7 @@ namespace CronRadar
                     await SyncMonitorAsync(monitorKey, schedule, source, apiKey: apiKey).ConfigureAwait(false);
 
                     // Retry the lifecycle ping
-                    await SendLifecyclePingInternalAsync(monitorKey, endpoint, apiKey, schedule, message).ConfigureAwait(false);
+                    await SendLifecyclePingInternalAsync(monitorKey, endpoint, apiKey, schedule, message, executionId, attempt).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -784,7 +811,7 @@ namespace CronRadar
             }
         }
 
-        private static async Task<HttpResponseMessage?> SendLifecyclePingInternalAsync(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null)
+        private static async Task<HttpResponseMessage?> SendLifecyclePingInternalAsync(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null, string? executionId = null, int? attempt = null)
         {
             try
             {
@@ -797,6 +824,10 @@ namespace CronRadar
                     queryParams.Add($"schedule={Uri.EscapeDataString(schedule)}");
                 if (!string.IsNullOrEmpty(message))
                     queryParams.Add($"message={Uri.EscapeDataString(message)}");
+                if (!string.IsNullOrWhiteSpace(executionId))
+                    queryParams.Add($"run_id={Uri.EscapeDataString(executionId)}");
+                if (attempt.HasValue)
+                    queryParams.Add($"attempt={attempt.Value}");
 
                 if (queryParams.Count > 0)
                     url += "?" + string.Join("&", queryParams);

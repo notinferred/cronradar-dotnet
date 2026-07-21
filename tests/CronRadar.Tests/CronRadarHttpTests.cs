@@ -384,6 +384,24 @@ public class CronRadarHttpTests : IDisposable
     #region CompleteJob Tests
 
     [Fact]
+    public void Lifecycle_IncludesExecutionCorrelationAndAttempt()
+    {
+        var mockHandler = new Mock<HttpMessageHandler>();
+        string? capturedUrl = null;
+        mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((request, _) => capturedUrl = request.RequestUri?.PathAndQuery)
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+        InjectMockHttpClient(mockHandler);
+
+        CronRadarClient.StartJob("test-job", apiKey: "test-api-key-123", executionId: "run 42", attempt: 2);
+
+        Assert.NotNull(capturedUrl);
+        Assert.Contains("run_id=run%2042", capturedUrl);
+        Assert.Contains("attempt=2", capturedUrl);
+    }
+
+    [Fact]
     public void CompleteJob_SendsPostRequest_ToCompleteEndpoint()
     {
         // Arrange

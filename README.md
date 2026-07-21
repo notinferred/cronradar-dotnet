@@ -120,7 +120,7 @@ Throws: never. Network errors and 4xx/5xx responses are caught and logged when `
 
 Grace period is set globally via the static property `CronRadar.DefaultGracePeriodSeconds` (default 60), or per-monitor via `SyncMonitor`. It's not a per-call argument.
 
-### `StartJobAsync(key, schedule?)`
+### `StartJobAsync(key, schedule?, apiKey?, executionId?, attempt?)`
 
 Records that a job has begun executing.
 
@@ -131,7 +131,9 @@ await CronRadar.StartJobAsync("daily-backup", schedule: "0 2 * * *");
 
 Used in conjunction with `CompleteJobAsync` or `FailJobAsync` to measure duration and detect hung jobs. Pass `schedule` on the first call to auto-register the monitor.
 
-### `CompleteJobAsync(key)`
+Pass the same opaque `executionId` to every lifecycle call when executions can overlap. `attempt` is a zero-based scheduler retry number. `WrapAsync` generates an execution ID automatically.
+
+### `CompleteJobAsync(key, apiKey?, executionId?, attempt?)`
 
 Records successful completion.
 
@@ -141,7 +143,7 @@ await CronRadar.CompleteJobAsync("daily-backup");
 
 Pair with a prior `StartJobAsync(key)` to record duration in the dashboard.
 
-### `FailJobAsync(key, message?)`
+### `FailJobAsync(key, message?, apiKey?, executionId?, attempt?)`
 
 Records explicit failure.
 
