@@ -432,6 +432,38 @@ public class CronRadarHttpTests : IDisposable
         Assert.Equal("/ping/test-job/test-api-key-123/complete", capturedUrl);
     }
 
+    [Fact]
+    public async Task CompleteJobAsync_SendsOnlyBoundedOutcomeValuesAsJson()
+    {
+        var mockHandler = new Mock<HttpMessageHandler>();
+        string? capturedBody = null;
+        mockHandler.Protected().Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>(async (request, _) => capturedBody = request.Content == null ? null : await request.Content.ReadAsStringAsync())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+        InjectMockHttpClient(mockHandler);
+
+        await CronRadarClient.CompleteJobAsync("test-job", outcomes: new System.Collections.Generic.Dictionary<string, object>
+        {
+            ["records_processed"] = 42,
+            ["successful"] = true
+        });
+
+        var json = JsonSerializer.Deserialize<JsonElement>(capturedBody!);
+        Assert.Equal(42, json.GetProperty("outcomes").GetProperty("records_processed").GetInt32());
+        Assert.True(json.GetProperty("outcomes").GetProperty("successful").GetBoolean());
+    }
+
+    [Fact]
+    public void CompleteJob_InvalidOutcomeNeverThrowsOrSends()
+    {
+        var mockHandler = new Mock<HttpMessageHandler>();
+        mockHandler.Protected().Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("must not send"));
+        InjectMockHttpClient(mockHandler);
+        var error = Record.Exception(() => CronRadarClient.CompleteJob("test-job", outcomes: new System.Collections.Generic.Dictionary<string, object> { ["payload"] = "sensitive" }));
+        Assert.Null(error);
+    }
+
     #endregion
 
     #region FailJob Tests

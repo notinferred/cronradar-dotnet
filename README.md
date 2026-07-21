@@ -133,15 +133,23 @@ Used in conjunction with `CompleteJobAsync` or `FailJobAsync` to measure duratio
 
 Pass the same opaque `executionId` to every lifecycle call when executions can overlap. `attempt` is a zero-based scheduler retry number. `WrapAsync` generates an execution ID automatically.
 
-### `CompleteJobAsync(key, apiKey?, executionId?, attempt?)`
+### `CompleteJobAsync(key, apiKey?, executionId?, attempt?, outcomes?)`
 
 Records successful completion.
 
 ```csharp
 await CronRadar.CompleteJobAsync("daily-backup");
+
+await CronRadar.CompleteJobAsync("nightly-import", outcomes: new Dictionary<string, object>
+{
+    ["records_processed"] = 842,
+    ["errors"] = 0,
+    ["successful"] = true
+});
 ```
 
 Pair with a prior `StartJobAsync(key)` to record duration in the dashboard.
+`outcomes` accepts at most five lowercase-keyed finite numbers or booleans. Configure matching expectations in the automation settings first. CronRadar rejects strings and does not collect payloads, records, logs, secrets, or personal data. Invalid outcome telemetry is caught and never breaks the job.
 
 ### `FailJobAsync(key, message?, apiKey?, executionId?, attempt?)`
 

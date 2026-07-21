@@ -270,7 +270,8 @@ namespace CronRadar
         /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
         /// <param name="executionId">Optional identifier shared by every event for one logical execution.</param>
         /// <param name="attempt">Optional zero-based scheduler retry attempt.</param>
-        public static void CompleteJob(string monitorKey, string? apiKey = null, string? executionId = null, int? attempt = null)
+        /// <param name="outcomes">Optional set of at most five numeric or boolean outcome values.</param>
+        public static void CompleteJob(string monitorKey, string? apiKey = null, string? executionId = null, int? attempt = null, IReadOnlyDictionary<string, object>? outcomes = null)
         {
             try
             {
@@ -279,7 +280,7 @@ namespace CronRadar
                 apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey)) return;
 
-                SendLifecyclePing(monitorKey, "complete", apiKey, executionId: executionId, attempt: attempt);
+                SendLifecyclePing(monitorKey, "complete", apiKey, executionId: executionId, attempt: attempt, outcomes: outcomes);
             }
             catch (Exception ex)
             {
@@ -295,7 +296,8 @@ namespace CronRadar
         /// <param name="apiKey">Optional API key. Falls back to CRONRADAR_API_KEY environment variable if not provided.</param>
         /// <param name="executionId">Optional identifier shared by every event for one logical execution.</param>
         /// <param name="attempt">Optional zero-based scheduler retry attempt.</param>
-        public static async Task CompleteJobAsync(string monitorKey, string? apiKey = null, string? executionId = null, int? attempt = null)
+        /// <param name="outcomes">Optional set of at most five numeric or boolean outcome values.</param>
+        public static async Task CompleteJobAsync(string monitorKey, string? apiKey = null, string? executionId = null, int? attempt = null, IReadOnlyDictionary<string, object>? outcomes = null)
         {
             try
             {
@@ -304,7 +306,7 @@ namespace CronRadar
                 apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey)) return;
 
-                await SendLifecyclePingAsync(monitorKey, "complete", apiKey, executionId: executionId, attempt: attempt).ConfigureAwait(false);
+                await SendLifecyclePingAsync(monitorKey, "complete", apiKey, executionId: executionId, attempt: attempt, outcomes: outcomes).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -733,11 +735,11 @@ namespace CronRadar
             }
         }
 
-        private static void SendLifecyclePing(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null, string? executionId = null, int? attempt = null)
+        private static void SendLifecyclePing(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null, string? executionId = null, int? attempt = null, IReadOnlyDictionary<string, object>? outcomes = null)
         {
             try
             {
-                var response = SendLifecyclePingInternal(monitorKey, endpoint, apiKey, schedule, message, executionId, attempt);
+                var response = SendLifecyclePingInternal(monitorKey, endpoint, apiKey, schedule, message, executionId, attempt, outcomes);
 
                 // Self-healing: if monitor doesn't exist and schedule provided, create it
                 if (response?.StatusCode == System.Net.HttpStatusCode.NotFound && !string.IsNullOrEmpty(schedule))
@@ -747,7 +749,7 @@ namespace CronRadar
                     SyncMonitor(monitorKey, schedule, source, apiKey: apiKey);
 
                     // Retry the lifecycle ping
-                    SendLifecyclePingInternal(monitorKey, endpoint, apiKey, schedule, message, executionId, attempt);
+                    SendLifecyclePingInternal(monitorKey, endpoint, apiKey, schedule, message, executionId, attempt, outcomes);
                 }
             }
             catch (Exception ex)
@@ -756,7 +758,7 @@ namespace CronRadar
             }
         }
 
-        private static HttpResponseMessage? SendLifecyclePingInternal(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null, string? executionId = null, int? attempt = null)
+        private static HttpResponseMessage? SendLifecyclePingInternal(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null, string? executionId = null, int? attempt = null, IReadOnlyDictionary<string, object>? outcomes = null)
         {
             try
             {
@@ -778,6 +780,7 @@ namespace CronRadar
                     url += "?" + string.Join("&", queryParams);
 
                 var request = new HttpRequestMessage(HttpMethod.Post, url);
+                request.Content = BuildOutcomeContent(outcomes);
 
                 return GetHttpClient().SendAsync(request).GetAwaiter().GetResult();
             }
@@ -788,11 +791,11 @@ namespace CronRadar
             }
         }
 
-        private static async Task SendLifecyclePingAsync(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null, string? executionId = null, int? attempt = null)
+        private static async Task SendLifecyclePingAsync(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null, string? executionId = null, int? attempt = null, IReadOnlyDictionary<string, object>? outcomes = null)
         {
             try
             {
-                var response = await SendLifecyclePingInternalAsync(monitorKey, endpoint, apiKey, schedule, message, executionId, attempt).ConfigureAwait(false);
+                var response = await SendLifecyclePingInternalAsync(monitorKey, endpoint, apiKey, schedule, message, executionId, attempt, outcomes).ConfigureAwait(false);
 
                 // Self-healing: if monitor doesn't exist and schedule provided, create it
                 if (response?.StatusCode == System.Net.HttpStatusCode.NotFound && !string.IsNullOrEmpty(schedule))
@@ -802,7 +805,7 @@ namespace CronRadar
                     await SyncMonitorAsync(monitorKey, schedule, source, apiKey: apiKey).ConfigureAwait(false);
 
                     // Retry the lifecycle ping
-                    await SendLifecyclePingInternalAsync(monitorKey, endpoint, apiKey, schedule, message, executionId, attempt).ConfigureAwait(false);
+                    await SendLifecyclePingInternalAsync(monitorKey, endpoint, apiKey, schedule, message, executionId, attempt, outcomes).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -811,7 +814,7 @@ namespace CronRadar
             }
         }
 
-        private static async Task<HttpResponseMessage?> SendLifecyclePingInternalAsync(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null, string? executionId = null, int? attempt = null)
+        private static async Task<HttpResponseMessage?> SendLifecyclePingInternalAsync(string monitorKey, string endpoint, string apiKey, string? schedule = null, string? message = null, string? executionId = null, int? attempt = null, IReadOnlyDictionary<string, object>? outcomes = null)
         {
             try
             {
@@ -833,6 +836,7 @@ namespace CronRadar
                     url += "?" + string.Join("&", queryParams);
 
                 var request = new HttpRequestMessage(HttpMethod.Post, url);
+                request.Content = BuildOutcomeContent(outcomes);
 
                 return await GetHttpClient().SendAsync(request).ConfigureAwait(false);
             }
@@ -841,6 +845,30 @@ namespace CronRadar
                 LogError($"Failed to send {endpoint} ping for '{monitorKey}'", ex);
                 return null;
             }
+        }
+
+        private static HttpContent? BuildOutcomeContent(IReadOnlyDictionary<string, object>? outcomes)
+        {
+            if (outcomes == null || outcomes.Count == 0) return null;
+            if (outcomes.Count > 5) throw new ArgumentException("At most five outcome values may be reported.", nameof(outcomes));
+            var safe = new Dictionary<string, object>(StringComparer.Ordinal);
+            foreach (var item in outcomes)
+            {
+                if (string.IsNullOrWhiteSpace(item.Key) || item.Key.Length > 64 || !System.Text.RegularExpressions.Regex.IsMatch(item.Key, "^[a-z][a-z0-9_]*$"))
+                    throw new ArgumentException("Outcome keys must use lowercase letters, numbers, and underscores.", nameof(outcomes));
+                if (!IsBoundedOutcomeValue(item.Value))
+                    throw new ArgumentException("Outcome values must be finite numbers or booleans.", nameof(outcomes));
+                safe[item.Key] = item.Value;
+            }
+            return new StringContent(JsonSerializer.Serialize(new { outcomes = safe }), Encoding.UTF8, "application/json");
+        }
+
+        private static bool IsBoundedOutcomeValue(object? value)
+        {
+            if (value is bool || value is byte || value is sbyte || value is short || value is ushort || value is int || value is uint || value is long || value is ulong || value is decimal) return true;
+            if (value is float single) return !float.IsNaN(single) && !float.IsInfinity(single);
+            if (value is double number) return !double.IsNaN(number) && !double.IsInfinity(number);
+            return false;
         }
 
         /// <summary>
