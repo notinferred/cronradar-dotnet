@@ -47,9 +47,14 @@ namespace CronRadar
                 {
                     if (_httpClient == null)
                     {
+                        var configuredBaseUrl = Environment.GetEnvironmentVariable(CronRadarConstants.BaseUrlEnvironmentVariable);
+                        var baseUrl = string.IsNullOrWhiteSpace(configuredBaseUrl)
+                            ? CronRadarConstants.BaseUrl
+                            : configuredBaseUrl.Trim();
+
                         _httpClient = new HttpClient
                         {
-                            BaseAddress = new Uri(CronRadarConstants.BaseUrl),
+                            BaseAddress = new Uri(baseUrl.EndsWith("/", StringComparison.Ordinal) ? baseUrl : baseUrl + "/"),
                             Timeout = TimeSpan.FromSeconds(TimeoutSeconds)
                         };
                     }
@@ -588,12 +593,21 @@ namespace CronRadar
             {
                 if (monitors == null) return;
 
-                var valid = monitors
+                var declared = monitors.ToList();
+                var valid = declared
                     .Where(m => m != null
                                 && ValidateMonitorKey(m.Key)
                                 && !string.IsNullOrWhiteSpace(m.Schedule)
                                 && ValidateSchedule(m.Schedule))
                     .ToList();
+
+                // A reconcile request is authoritative. Never turn a partially
+                // valid discovery result into accidental removals on the server.
+                if (valid.Count != declared.Count)
+                {
+                    Console.Error.WriteLine($"[CronRadar] Reconciliation skipped: {declared.Count - valid.Count} discovered monitor(s) had an invalid key or five-field cron schedule. Fix the reported Hangfire recurring job configuration; no existing monitors were removed.");
+                    return;
+                }
 
                 apiKey ??= Environment.GetEnvironmentVariable(CronRadarConstants.ApiKeyEnvironmentVariable) ?? "";
                 if (string.IsNullOrEmpty(apiKey))
@@ -634,11 +648,18 @@ namespace CronRadar
                 }
                 else
                 {
-                    Console.WriteLine($"[CronRadar] Failed to reconcile monitors for source '{source}': {response.StatusCode}");
+                    var detail = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    var guidance = response.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                        ? "Confirm CRONRADAR_API_KEY is active and belongs to this application and deployment environment."
+                        : (int)response.StatusCode == 429
+                            ? "Keep the default reconciliation interval and retry after the server-provided delay."
+                            : "Hangfire continues normally; the next reconciliation will retry.";
+                    Console.Error.WriteLine($"[CronRadar] Reconciliation was rejected ({(int)response.StatusCode} {response.StatusCode}). {guidance} {Bound(detail, 300)}");
                 }
             }
             catch (Exception ex)
             {
+                Console.Error.WriteLine($"[CronRadar] Reconciliation could not reach CronRadar within the configured {TimeoutSeconds}-second timeout. The application continues normally and the next reconciliation will retry. {ex.GetType().Name}: {ex.Message}");
                 LogError("Error reconciling monitors", ex);
                 // Never throw - protect user's application
             }
@@ -647,6 +668,13 @@ namespace CronRadar
         #endregion
 
         #region Helper Methods
+
+        private static string Bound(string? value, int maxLength)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+            value = value.Trim();
+            return value.Length <= maxLength ? value : value.Substring(0, maxLength) + "…";
+        }
 
         private static HttpResponseMessage? SendPingInternal(string monitorKey, string apiKey)
         {

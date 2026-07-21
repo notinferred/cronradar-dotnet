@@ -30,6 +30,9 @@ namespace CronRadar
         /// </summary>
         internal const string BaseUrl = "https://cron.life";
 
+        /// <summary>Optional environment variable for local testing or a private ingestion endpoint.</summary>
+        public const string BaseUrlEnvironmentVariable = "CRONRADAR_BASE_URL";
+
         /// <summary>
         /// Environment variable name for API key.
         /// </summary>
