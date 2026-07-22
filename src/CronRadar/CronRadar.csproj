@@ -7,20 +7,20 @@
 
     <!-- Package Information -->
     <PackageId>CronRadar</PackageId>
-    <Version>1.0.13</Version>
-    <AssemblyVersion>1.0.13.0</AssemblyVersion>
-    <FileVersion>1.0.13.0</FileVersion>
-    <Authors>Administrator</Authors>
+    <Version>1.0.14</Version>
+    <AssemblyVersion>1.0.14.0</AssemblyVersion>
+    <FileVersion>1.0.14.0</FileVersion>
+    <Authors>CronRadar</Authors>
     <Company>CronRadar</Company>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <Product>CronRadar .NET SDK</Product>
-    <Description>Dead-simple cron job monitoring with auto-registration. Two functions: Ping() and SyncMonitor(). Self-healing monitors.</Description>
-    <Copyright>Copyright © CronRadar 2025</Copyright>
-    <PackageProjectUrl>https://github.com/cronradar/cronradar-dotnet</PackageProjectUrl>
+    <Description>Non-blocking lifecycle and heartbeat monitoring for .NET scheduled jobs, with missed-run, failure, and stuck-run detection.</Description>
+    <Copyright>Copyright © CronRadar 2026</Copyright>
+    <PackageProjectUrl>https://cronradar.com/dotnet</PackageProjectUrl>
     <RepositoryUrl>https://github.com/cronradar/cronradar-dotnet</RepositoryUrl>
-    <PackageTags>cron;monitoring;scheduler;job;task;ping;sync;auto-register</PackageTags>
+    <PackageTags>cronradar;dotnet;scheduled-jobs;cron;monitoring;missed-jobs;failed-jobs;stuck-jobs;heartbeat</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>Monitor any scheduled job with self-healing. Just call CronRadar.Ping() after your job completes.</PackageReleaseNotes>
+    <PackageReleaseNotes>Clarifies scheduled-job reliability coverage and package discovery metadata; runtime behavior is unchanged.</PackageReleaseNotes>
 
     <!-- Build Configuration -->
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>

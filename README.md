@@ -304,7 +304,8 @@ For Hangfire or Quartz.NET, migrate to the matching framework integration only a
 
 ## Links
 
-- **Documentation:** [docs.cronradar.com](https://docs.cronradar.com)
+- **Documentation:** [docs.cronradar.com/integrations/dotnet](https://docs.cronradar.com/integrations/dotnet)
+- **Monitoring overview:** [cronradar.com/dotnet](https://cronradar.com/dotnet)
 - **Agent-friendly index:** [docs.cronradar.com/llms.txt](https://docs.cronradar.com/llms.txt)
 - **OpenAPI spec:** [docs.cronradar.com/openapi.json](https://docs.cronradar.com/openapi.json)
 - **NuGet:** [nuget.org/packages/CronRadar](https://www.nuget.org/packages/CronRadar)
