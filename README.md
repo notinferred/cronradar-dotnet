@@ -291,7 +291,7 @@ Run the wrapped job once and confirm the intended CronRadar application shows th
 Check authentication and outbound HTTPS without printing the key:
 
 ```bash
-curl --fail-with-body --silent --show-error --user "$CRONRADAR_API_KEY:" "https://cron.life/api/sync/status"
+curl --fail-with-body --silent --show-error --user "$CRONRADAR_API_KEY:" "https://cron.life/api/v1/sync/status"
 ```
 
 After a real run is visible, use the guided reliability drill to verify the configured notification path without changing the production job.

@@ -91,7 +91,7 @@ public class CronRadarHttpTests : IDisposable
 
         // Assert
         Assert.Equal(HttpMethod.Get, capturedMethod);
-        Assert.Equal("/ping/test-job/test-api-key-123", capturedUrl);
+        Assert.Equal("/api/v1/ping/test-job/test-api-key-123", capturedUrl);
     }
 
     [Fact]
@@ -176,7 +176,7 @@ public class CronRadarHttpTests : IDisposable
             .ReturnsAsync((HttpRequestMessage req, CancellationToken _) =>
             {
                 // First call returns 404, subsequent calls return 200
-                if (req.RequestUri?.PathAndQuery?.Contains("/api/sync") == true)
+                if (req.RequestUri?.PathAndQuery?.Contains("/api/v1/sync") == true)
                     return new HttpResponseMessage(HttpStatusCode.OK);
                 if (callCount == 1)
                     return new HttpResponseMessage(HttpStatusCode.NotFound);
@@ -188,8 +188,8 @@ public class CronRadarHttpTests : IDisposable
         // Act
         CronRadarClient.Monitor("test-job", "* * * * *");
 
-        // Assert - should have called /api/sync after 404
-        Assert.Contains(capturedUrls, u => u.Contains("/api/sync"));
+        // Assert - should have called /api/v1/sync after 404
+        Assert.Contains(capturedUrls, u => u.Contains("/api/v1/sync"));
     }
 
     [Fact]
@@ -216,8 +216,8 @@ public class CronRadarHttpTests : IDisposable
         // Act
         CronRadarClient.Monitor("test-job"); // No schedule provided
 
-        // Assert - should NOT have called /api/sync
-        Assert.DoesNotContain(capturedUrls, u => u.Contains("/api/sync"));
+        // Assert - should NOT have called /api/v1/sync
+        Assert.DoesNotContain(capturedUrls, u => u.Contains("/api/v1/sync"));
     }
 
     [Fact]
@@ -281,7 +281,7 @@ public class CronRadarHttpTests : IDisposable
 
         // Assert
         Assert.Equal(HttpMethod.Post, capturedMethod);
-        Assert.Equal("/ping/test-job/test-api-key-123/start", capturedUrl);
+        Assert.Equal("/api/v1/ping/test-job/test-api-key-123/start", capturedUrl);
     }
 
     [Fact]
@@ -335,7 +335,7 @@ public class CronRadarHttpTests : IDisposable
             })
             .ReturnsAsync((HttpRequestMessage req, CancellationToken _) =>
             {
-                if (req.RequestUri?.PathAndQuery?.Contains("/api/sync") == true)
+                if (req.RequestUri?.PathAndQuery?.Contains("/api/v1/sync") == true)
                     return new HttpResponseMessage(HttpStatusCode.OK);
                 if (callCount == 1)
                     return new HttpResponseMessage(HttpStatusCode.NotFound);
@@ -348,7 +348,7 @@ public class CronRadarHttpTests : IDisposable
         CronRadarClient.StartJob("test-job", "* * * * *");
 
         // Assert
-        Assert.Contains(capturedUrls, u => u.Contains("/api/sync"));
+        Assert.Contains(capturedUrls, u => u.Contains("/api/v1/sync"));
     }
 
     [Fact]
@@ -376,7 +376,7 @@ public class CronRadarHttpTests : IDisposable
         CronRadarClient.StartJob("test-job"); // No schedule
 
         // Assert
-        Assert.DoesNotContain(capturedUrls, u => u.Contains("/api/sync"));
+        Assert.DoesNotContain(capturedUrls, u => u.Contains("/api/v1/sync"));
     }
 
     #endregion
@@ -429,7 +429,7 @@ public class CronRadarHttpTests : IDisposable
 
         // Assert
         Assert.Equal(HttpMethod.Post, capturedMethod);
-        Assert.Equal("/ping/test-job/test-api-key-123/complete", capturedUrl);
+        Assert.Equal("/api/v1/ping/test-job/test-api-key-123/complete", capturedUrl);
     }
 
     [Fact]
@@ -496,7 +496,7 @@ public class CronRadarHttpTests : IDisposable
 
         // Assert
         Assert.Equal(HttpMethod.Post, capturedMethod);
-        Assert.Equal("/ping/test-job/test-api-key-123/fail", capturedUrl);
+        Assert.Equal("/api/v1/ping/test-job/test-api-key-123/fail", capturedUrl);
     }
 
     [Fact]
@@ -592,7 +592,7 @@ public class CronRadarHttpTests : IDisposable
 
         // Assert
         Assert.Equal(HttpMethod.Post, capturedMethod);
-        Assert.Equal("/api/sync", capturedUrl);
+        Assert.Equal("/api/v1/sync", capturedUrl);
     }
 
     [Fact]
@@ -736,7 +736,7 @@ public class CronRadarHttpTests : IDisposable
         await CronRadarClient.MonitorAsync("test-job");
 
         // Assert
-        Assert.Equal("/ping/test-job/test-api-key-123", capturedUrl);
+        Assert.Equal("/api/v1/ping/test-job/test-api-key-123", capturedUrl);
     }
 
     [Fact]
@@ -764,7 +764,7 @@ public class CronRadarHttpTests : IDisposable
         await CronRadarClient.StartJobAsync("test-job");
 
         // Assert
-        Assert.Equal("/ping/test-job/test-api-key-123/start", capturedUrl);
+        Assert.Equal("/api/v1/ping/test-job/test-api-key-123/start", capturedUrl);
     }
 
     [Fact]
@@ -792,7 +792,7 @@ public class CronRadarHttpTests : IDisposable
         await CronRadarClient.CompleteJobAsync("test-job");
 
         // Assert
-        Assert.Equal("/ping/test-job/test-api-key-123/complete", capturedUrl);
+        Assert.Equal("/api/v1/ping/test-job/test-api-key-123/complete", capturedUrl);
     }
 
     [Fact]
@@ -821,7 +821,7 @@ public class CronRadarHttpTests : IDisposable
 
         // Assert
         Assert.NotNull(capturedUrl);
-        Assert.StartsWith("/ping/test-job/test-api-key-123/fail", capturedUrl);
+        Assert.StartsWith("/api/v1/ping/test-job/test-api-key-123/fail", capturedUrl);
         Assert.Contains("message=Test%20error", capturedUrl);
     }
 
@@ -850,7 +850,7 @@ public class CronRadarHttpTests : IDisposable
         await CronRadarClient.SyncMonitorAsync("test-job", "* * * * *");
 
         // Assert
-        Assert.Equal("/api/sync", capturedUrl);
+        Assert.Equal("/api/v1/sync", capturedUrl);
     }
 
     #endregion
