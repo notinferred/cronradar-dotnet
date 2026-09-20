@@ -294,7 +294,7 @@ Check authentication and outbound HTTPS without printing the key:
 curl --fail-with-body --silent --show-error --user "$CRONRADAR_API_KEY:" "https://cron.life/api/v1/sync/status"
 ```
 
-After a real run is visible, use the guided reliability drill to verify the configured notification path without changing the production job.
+After a real run is visible, open the application's **Alerts** tab to choose delivery channels and check recipients. If notifications are managed by the workspace, follow its settings link. Keep delivery unverified until the intended recipient confirms an alert or an available channel test. To exercise failure handling beforehand, use a harmless job in a separate test application and an agreed test destination; do not deliberately fail a production job.
 
 ## Migration
 
