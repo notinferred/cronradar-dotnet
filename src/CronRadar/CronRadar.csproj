@@ -32,6 +32,8 @@
   <ItemGroup>
     <!-- System.Text.Json for sync endpoint - only needed for older frameworks -->
     <PackageReference Include="System.Text.Json" Version="4.7.2" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
+    <!-- System.Text.Json 4.7.2 allows System.Text.Encodings.Web 4.7.1 (GHSA-ghhp-997w-qr28); 4.7.2 is the patched floor -->
+    <PackageReference Include="System.Text.Encodings.Web" Version="4.7.2" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
     <!-- .NET 6+ includes System.Text.Json in the framework -->
   </ItemGroup>
 
