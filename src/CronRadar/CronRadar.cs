@@ -107,7 +107,8 @@ namespace CronRadar
             }
 
             // Basic cron validation: should have 5 or 6 space-separated fields
-            var parts = schedule.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            // non-null: checked by IsNullOrWhiteSpace above, which netstandard2.0 does not annotate
+            var parts = schedule!.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length < 5 || parts.Length > 6)
             {
                 LogError($"Invalid cron schedule '{schedule}': Expected 5 or 6 fields, got {parts.Length}");
@@ -149,7 +150,8 @@ namespace CronRadar
                     Console.WriteLine($"[CronRadar] Monitor '{monitorKey}' not found. Auto-registering with schedule '{schedule}'...");
 
                     var source = DetectSource();
-                    SyncMonitor(monitorKey, schedule, source);
+                    // non-null: checked by IsNullOrEmpty above, which netstandard2.0 does not annotate
+                    SyncMonitor(monitorKey, schedule!, source);
 
                     // Retry ping
                     SendPingInternal(monitorKey, apiKey);
@@ -192,7 +194,8 @@ namespace CronRadar
                     Console.WriteLine($"[CronRadar] Monitor '{monitorKey}' not found. Auto-registering with schedule '{schedule}'...");
 
                     var source = DetectSource();
-                    await SyncMonitorAsync(monitorKey, schedule, source).ConfigureAwait(false);
+                    // non-null: checked by IsNullOrEmpty above, which netstandard2.0 does not annotate
+                    await SyncMonitorAsync(monitorKey, schedule!, source).ConfigureAwait(false);
 
                     // Retry ping
                     await SendPingInternalAsync(monitorKey, apiKey).ConfigureAwait(false);
@@ -697,7 +700,8 @@ namespace CronRadar
         private static string Bound(string? value, int maxLength)
         {
             if (string.IsNullOrWhiteSpace(value)) return string.Empty;
-            value = value.Trim();
+            // non-null: checked by IsNullOrWhiteSpace above, which netstandard2.0 does not annotate
+            value = value!.Trim();
             return value.Length <= maxLength ? value : value.Substring(0, maxLength) + "…";
         }
 
@@ -746,7 +750,8 @@ namespace CronRadar
                 {
                     Console.WriteLine($"[CronRadar] Monitor '{monitorKey}' not found. Auto-registering...");
                     var source = DetectSource();
-                    SyncMonitor(monitorKey, schedule, source, apiKey: apiKey);
+                    // non-null: checked by IsNullOrEmpty above, which netstandard2.0 does not annotate
+                    SyncMonitor(monitorKey, schedule!, source, apiKey: apiKey);
 
                     // Retry the lifecycle ping
                     SendLifecyclePingInternal(monitorKey, endpoint, apiKey, schedule, message, executionId, attempt, outcomes);
@@ -802,7 +807,8 @@ namespace CronRadar
                 {
                     Console.WriteLine($"[CronRadar] Monitor '{monitorKey}' not found. Auto-registering...");
                     var source = DetectSource();
-                    await SyncMonitorAsync(monitorKey, schedule, source, apiKey: apiKey).ConfigureAwait(false);
+                    // non-null: checked by IsNullOrEmpty above, which netstandard2.0 does not annotate
+                    await SyncMonitorAsync(monitorKey, schedule!, source, apiKey: apiKey).ConfigureAwait(false);
 
                     // Retry the lifecycle ping
                     await SendLifecyclePingInternalAsync(monitorKey, endpoint, apiKey, schedule, message, executionId, attempt, outcomes).ConfigureAwait(false);
