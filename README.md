@@ -316,4 +316,4 @@ For Hangfire or Quartz.NET, migrate to the matching framework integration only a
 
 ## License
 
-© 2026 [CronRadar](https://cronradar.com) · Proprietary — see [LICENSE](./LICENSE).
+© 2026 [CronRadar](https://cronradar.com) · MIT — see [LICENSE](./LICENSE).
