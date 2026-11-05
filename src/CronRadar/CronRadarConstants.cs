@@ -23,7 +23,7 @@ namespace CronRadar
         /// <summary>
         /// Base SDK version, reported to the server on sync/reconcile.
         /// </summary>
-        public const string SdkVersion = "0.1.0";
+        public const string SdkVersion = "1.0.14";
 
         /// <summary>
         /// CronRadar API base URL.
