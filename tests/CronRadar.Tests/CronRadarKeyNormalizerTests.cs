@@ -1,3 +1,4 @@
+using System.Linq;
 using Xunit;
 
 namespace CronRadar.Tests;
@@ -136,5 +137,34 @@ public class CronRadarKeyNormalizerTests
     {
         var result = CronRadarKeyNormalizer.Normalize(group, name!);
         Assert.Equal(expected, result);
+    }
+
+    // Shared test vector from docs/SDK_SPECIFICATION.md "Monitor Keys"; every SDK that derives keys must produce it.
+    [Fact]
+    public void Normalize_KeyOverLimit_MatchesSharedShorteningVector()
+    {
+        var key = string.Concat(Enumerable.Repeat("abcdef-", 15)) + "end";
+
+        var result = CronRadarKeyNormalizer.Normalize(key);
+
+        Assert.Equal(string.Concat(Enumerable.Repeat("abcdef-", 12)) + "abcdef-4f91bd6e", result);
+        Assert.Equal(99, result.Length);
+    }
+
+    [Fact]
+    public void Normalize_KeyOverLimit_KeepsNinetyOneCharactersAndHash()
+    {
+        var result = CronRadarKeyNormalizer.Normalize("nightly-" + new string('x', 95));
+
+        Assert.Equal("nightly-" + new string('x', 83) + "-89d49067", result);
+        Assert.Equal(100, result.Length);
+    }
+
+    [Fact]
+    public void Normalize_KeyAtLimit_IsUnchanged()
+    {
+        var key = new string('k', CronRadarConstants.MaxMonitorKeyLength);
+
+        Assert.Equal(key, CronRadarKeyNormalizer.Normalize(key));
     }
 }

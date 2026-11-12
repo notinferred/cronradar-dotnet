@@ -64,6 +64,38 @@ public class CronRadarHttpTests : IDisposable
     #region Monitor Tests
 
     [Fact]
+    public async Task MonitorAsync_KeyOverLimit_WarnsWithoutDebugAndSendsNothing()
+    {
+        var mockHandler = new Mock<HttpMessageHandler>();
+        var requests = 0;
+        mockHandler
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((_, _) => requests++)
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+        InjectMockHttpClient(mockHandler);
+        CronRadarClient.DebugLoggingEnabled = false;
+        var originalError = Console.Error;
+        var error = new System.IO.StringWriter();
+        Console.SetError(error);
+        try
+        {
+            await CronRadarClient.MonitorAsync(new string('k', 101), schedule: "0 2 * * *");
+            await CronRadarClient.MonitorAsync(new string('k', 100), schedule: "0 2 * * *");
+        }
+        finally
+        {
+            Console.SetError(originalError);
+        }
+
+        Assert.Equal(1, requests);
+        Assert.Contains("is 101 characters, over the maximum of 100", error.ToString());
+    }
+
+    [Fact]
     public void Monitor_SendsGetRequest_ToCorrectUrl()
     {
         // Arrange

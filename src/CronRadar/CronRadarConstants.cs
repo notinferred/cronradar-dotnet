@@ -6,9 +6,9 @@ namespace CronRadar
     public static class CronRadarConstants
     {
         /// <summary>
-        /// Maximum length for a monitor key (200 characters).
+        /// Maximum length for a monitor key (100 characters, counted in UTF-16 code units like the server).
         /// </summary>
-        public const int MaxMonitorKeyLength = 200;
+        public const int MaxMonitorKeyLength = 100;
 
         /// <summary>
         /// Default HTTP request timeout in seconds (5 seconds).
@@ -23,7 +23,7 @@ namespace CronRadar
         /// <summary>
         /// Base SDK version, reported to the server on sync/reconcile.
         /// </summary>
-        public const string SdkVersion = "1.0.14";
+        public const string SdkVersion = "1.0.15";
 
         /// <summary>
         /// CronRadar API base URL.

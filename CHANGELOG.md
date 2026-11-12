@@ -5,6 +5,15 @@ All notable changes to the CronRadar .NET SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.15] - Unreleased
+
+### Changed
+- Monitor keys are limited to 100 characters, the server's limit (was 200). A longer key is skipped, and the warning is now written to stderr even when debug logging is off.
+- `CronRadarKeyNormalizer.Normalize` shortens a key over 100 characters to its first 91 characters without trailing hyphens, a hyphen, and the first 8 hex characters of the SHA-256 of the full key. Hangfire and Quartz.NET jobs with long IDs are now monitored under that stable key.
+
+### Fixed
+- README examples call `CronRadar.CronRadar.X` fully qualified; `CronRadar.X` after `using CronRadar;` did not compile.
+
 ## [1.0.12] - 2025-01-20
 
 ### Fixed

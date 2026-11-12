@@ -5,9 +5,9 @@ namespace CronRadar.Tests;
 public class CronRadarConstantsTests
 {
     [Fact]
-    public void MaxMonitorKeyLength_Is200()
+    public void MaxMonitorKeyLength_Is100()
     {
-        Assert.Equal(200, CronRadarConstants.MaxMonitorKeyLength);
+        Assert.Equal(100, CronRadarConstants.MaxMonitorKeyLength);
     }
 
     [Fact]

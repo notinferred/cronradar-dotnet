@@ -28,7 +28,7 @@ export CRONRADAR_API_KEY=ck_app_xxxxxxxxxxxxxxxxxxxx
 Or pass it explicitly per-call (useful in app config):
 
 ```csharp
-CronRadar.Monitor("daily-backup", apiKey: "ck_app_xxxxxxxxxxxxxxxxxxxx");
+CronRadar.CronRadar.Monitor("daily-backup", apiKey: "ck_app_xxxxxxxxxxxxxxxxxxxx");
 ```
 
 Get the API key from the CronRadar dashboard at [app.cronradar.com](https://app.cronradar.com) under your application's settings. API keys have the form `ck_app_<random>`.
@@ -40,21 +40,19 @@ The SDK does not require explicit initialization. The first call reads the env v
 ## Quickstart
 
 ```csharp
-using CronRadar;
-
-// First-time call: pass schedule so the monitor auto-registers.
-await CronRadar.MonitorAsync("daily-backup", schedule: "0 2 * * *");
-
-// Subsequent calls: just the key.
-await CronRadar.MonitorAsync("daily-backup");
+await CronRadar.CronRadar.MonitorAsync("daily-backup", schedule: "0 2 * * *");
 ```
 
 That's the minimal integration. CronRadar:
 
-- Creates the `daily-backup` monitor on the first ping (because `schedule` was provided)
-- Records each subsequent ping
+- Creates the `daily-backup` monitor on the first report (because `schedule` was provided)
+- Records each later report
 - Alerts you (email + any other configured channels) if the monitor doesn't ping within `0 2 * * *` plus its grace period
-- Re-creates the monitor if you delete it from the dashboard and the schedule param is still being passed
+- Re-creates the monitor if you delete it from the dashboard, because every report carries the schedule
+
+Pass the schedule on every report, not only the first.
+
+The class has the same name as its namespace, so call it as `CronRadar.CronRadar`; a bare `CronRadar.MonitorAsync` after `using CronRadar;` does not compile.
 
 ## Manual lifecycle
 
@@ -63,9 +61,7 @@ For finer-grained tracking — duration measurement, explicit failure messages, 
 ### Wrapper (recommended)
 
 ```csharp
-using CronRadar;
-
-await CronRadar.WrapAsync("daily-backup", async () =>
+await CronRadar.CronRadar.WrapAsync("daily-backup", async () =>
 {
     await RunBackupAsync();
 }, schedule: "0 2 * * *");
@@ -82,17 +78,15 @@ The wrapper:
 ### Manual call style
 
 ```csharp
-using CronRadar;
-
-await CronRadar.StartJobAsync("daily-backup", schedule: "0 2 * * *");
+await CronRadar.CronRadar.StartJobAsync("daily-backup", schedule: "0 2 * * *");
 try
 {
     await RunBackupAsync();
-    await CronRadar.CompleteJobAsync("daily-backup");
+    await CronRadar.CronRadar.CompleteJobAsync("daily-backup");
 }
 catch (Exception ex)
 {
-    await CronRadar.FailJobAsync("daily-backup", ex.Message);
+    await CronRadar.CronRadar.FailJobAsync("daily-backup", ex.Message);
     throw;   // always re-throw — monitoring observes, never alters behavior
 }
 ```
@@ -106,27 +100,27 @@ All public methods exist as both sync (`Monitor`) and async (`MonitorAsync`) ove
 Records a successful execution. Returns `Task`.
 
 ```csharp
-await CronRadar.MonitorAsync("daily-backup");
-await CronRadar.MonitorAsync("daily-backup", schedule: "0 2 * * *");
+await CronRadar.CronRadar.MonitorAsync("daily-backup");
+await CronRadar.CronRadar.MonitorAsync("daily-backup", schedule: "0 2 * * *");
 ```
 
 | Parameter | Type | Required | Notes |
 |---|---|---|---|
-| `monitorKey` | `string` | yes | Monitor key. Lowercase, kebab/snake/dot-case. Max 200 chars. |
-| `schedule` | `string?` | optional | Standard 5-field cron expression. Required on the *first* ping for self-healing registration. |
+| `monitorKey` | `string` | yes | Monitor key. Lowercase, kebab/snake/dot-case. At most 100 characters, counted in UTF-16 code units as the server counts them; a longer key skips the call and writes a warning to stderr. |
+| `schedule` | `string?` | optional | Standard 5-field cron expression. Pass it on every report so a missing or deleted monitor registers again. |
 | `apiKey` | `string?` | optional | Override the env-var-supplied API key for this call. |
 
 Throws: never. Network errors and 4xx/5xx responses are caught and logged when `DebugLoggingEnabled` is true.
 
-Grace period is set globally via the static property `CronRadar.DefaultGracePeriodSeconds` (default 60), or per-monitor via `SyncMonitor`. It's not a per-call argument.
+Grace period is set globally via the static property `CronRadar.CronRadar.DefaultGracePeriodSeconds` (default 60), or per-monitor via `SyncMonitor`. It's not a per-call argument.
 
 ### `StartJobAsync(key, schedule?, apiKey?, executionId?, attempt?)`
 
 Records that a job has begun executing.
 
 ```csharp
-await CronRadar.StartJobAsync("daily-backup");
-await CronRadar.StartJobAsync("daily-backup", schedule: "0 2 * * *");
+await CronRadar.CronRadar.StartJobAsync("daily-backup");
+await CronRadar.CronRadar.StartJobAsync("daily-backup", schedule: "0 2 * * *");
 ```
 
 Used in conjunction with `CompleteJobAsync` or `FailJobAsync` to measure duration and detect hung jobs. Pass `schedule` on the first call to auto-register the monitor.
@@ -138,9 +132,9 @@ Pass the same opaque `executionId` to every lifecycle call when executions can o
 Records successful completion.
 
 ```csharp
-await CronRadar.CompleteJobAsync("daily-backup");
+await CronRadar.CronRadar.CompleteJobAsync("daily-backup");
 
-await CronRadar.CompleteJobAsync("nightly-import", outcomes: new Dictionary<string, object>
+await CronRadar.CronRadar.CompleteJobAsync("nightly-import", outcomes: new Dictionary<string, object>
 {
     ["records_processed"] = 842,
     ["errors"] = 0,
@@ -156,7 +150,7 @@ Pair with a prior `StartJobAsync(key)` to record duration in the dashboard.
 Records explicit failure.
 
 ```csharp
-await CronRadar.FailJobAsync("daily-backup", "Database connection refused");
+await CronRadar.CronRadar.FailJobAsync("daily-backup", "Database connection refused");
 ```
 
 | Parameter | Type | Required | Notes |
@@ -171,7 +165,7 @@ Triggers an immediate alert (no grace period). The message appears in the alert 
 Wraps an async delegate with full lifecycle tracking. Returns `Task`.
 
 ```csharp
-await CronRadar.WrapAsync("daily-backup", async () => { /* work */ }, schedule: "0 2 * * *");
+await CronRadar.CronRadar.WrapAsync("daily-backup", async () => { /* work */ }, schedule: "0 2 * * *");
 ```
 
 | Parameter | Type | Required | Notes |
@@ -188,7 +182,7 @@ If `fn` throws, the wrapper re-throws after recording the failure. Monitoring ne
 Pre-registers a monitor without sending a ping. Used by the Hangfire and Quartz extensions during application startup.
 
 ```csharp
-await CronRadar.SyncMonitorAsync(
+await CronRadar.CronRadar.SyncMonitorAsync(
     key: "daily-backup",
     schedule: "0 2 * * *",
     source: "hangfire",
@@ -209,15 +203,15 @@ Used internally by extensions; rarely needed in application code.
 | Environment variable | Required | Default | Purpose |
 |---|---|---|---|
 | `CRONRADAR_API_KEY` | yes | — | API key from the CronRadar dashboard. Format `ck_app_xxxxx`. |
-| `CRONRADAR_DEBUG` | no | `false` | Set to `true` to log every request and error to `Console.Error`. Equivalent to `CronRadar.DebugLoggingEnabled = true` in code. |
+| `CRONRADAR_DEBUG` | no | `false` | Set to `true` to log every request and error to `Console.Error`. Equivalent to `CronRadar.CronRadar.DebugLoggingEnabled = true` in code. |
 
-Static properties on `CronRadar` for in-process tuning (must be set before the first call):
+Static properties on the `CronRadar.CronRadar` class for in-process tuning (must be set before the first call):
 
 | Property | Default | Purpose |
 |---|---|---|
-| `CronRadar.TimeoutSeconds` | `5` | HTTP request timeout. |
-| `CronRadar.DefaultGracePeriodSeconds` | `60` | Default grace period for newly registered monitors. |
-| `CronRadar.DebugLoggingEnabled` | follows `CRONRADAR_DEBUG` | Toggle debug logging at runtime. |
+| `CronRadar.CronRadar.TimeoutSeconds` | `5` | HTTP request timeout. |
+| `CronRadar.CronRadar.DefaultGracePeriodSeconds` | `60` | Default grace period for newly registered monitors. |
+| `CronRadar.CronRadar.DebugLoggingEnabled` | follows `CRONRADAR_DEBUG` | Toggle debug logging at runtime. |
 
 The base URL is a compile-time internal constant pointing at `https://cron.life`.
 
@@ -252,15 +246,13 @@ test -n "$CRONRADAR_API_KEY" && echo "CronRadar key is set" || echo "CronRadar k
 
 The key must match the one shown on **app.cronradar.com → your application → Settings → API Keys**. Keys are not retrievable after creation — if you lost it, create a new one and rotate.
 
-### `404 Monitor Not Found` on first ping
+### `404 Monitor Not Found`
 
-You called `MonitorAsync(key)` without a `schedule` for a brand-new key. The first ping must include `schedule` so CronRadar can register the monitor:
+You called `MonitorAsync(key)` without a `schedule` for a key CronRadar doesn't have: a new key, or a monitor deleted from the dashboard. Pass `schedule` on every report so CronRadar registers the monitor whenever it is missing:
 
 ```csharp
-await CronRadar.MonitorAsync("daily-backup", schedule: "0 2 * * *");
+await CronRadar.CronRadar.MonitorAsync("daily-backup", schedule: "0 2 * * *");
 ```
-
-Subsequent pings can omit `schedule`. If you delete the monitor from the dashboard and the next ping doesn't include `schedule`, you'll see the same 404.
 
 ### My cron expression is rejected
 
@@ -276,7 +268,7 @@ CronRadar uses the standard 5-field POSIX cron format. **Quartz.NET-style 6 or 7
 If you're awaiting the SDK calls, this should not happen. If you're using `Task.Run(...)` fire-and-forget patterns, ensure the task completes before exit:
 
 ```csharp
-await CronRadar.MonitorAsync("daily-backup");
+await CronRadar.CronRadar.MonitorAsync("daily-backup");
 return 0; // safe — await above ensures the ping completed
 ```
 

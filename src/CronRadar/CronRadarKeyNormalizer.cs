@@ -1,4 +1,5 @@
 using System;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -19,6 +20,7 @@ namespace CronRadar
         /// - "\"check-overdue-pings\"" -> "check-overdue-pings"
         /// - "Check_Overdue_Pings" -> "check-overdue-pings"
         /// - "Reports.DailyReport" -> "reports-dailyreport"
+        /// A result over <see cref="CronRadarConstants.MaxMonitorKeyLength"/> is shortened to a stable key of at most that length.
         /// </summary>
         /// <param name="key">The key to normalize</param>
         /// <returns>Normalized monitor key in lowercase with only alphanumeric and hyphens</returns>
@@ -81,7 +83,28 @@ namespace CronRadar
                 result.Length--;
             }
 
-            return result.ToString();
+            return Shorten(result.ToString());
+        }
+
+        /// <summary>
+        /// Shortens a normalized key over the monitor-key limit, as every CronRadar SDK does for keys it derives:
+        /// the first 91 characters without trailing hyphens, a hyphen, and the first 8 hex characters of the
+        /// SHA-256 of the full key (UTF-8). Keys within the limit are returned unchanged.
+        /// </summary>
+        private static string Shorten(string normalizedKey)
+        {
+            const int hashLength = 8;
+            if (normalizedKey.Length <= CronRadarConstants.MaxMonitorKeyLength)
+                return normalizedKey;
+
+            byte[] hash;
+            using (var sha256 = SHA256.Create())
+            {
+                hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(normalizedKey));
+            }
+            var hex = BitConverter.ToString(hash, 0, hashLength / 2).Replace("-", "").ToLowerInvariant();
+            var prefix = normalizedKey.Substring(0, CronRadarConstants.MaxMonitorKeyLength - hashLength - 1).TrimEnd('-');
+            return prefix + "-" + hex;
         }
 
         /// <summary>

@@ -58,8 +58,8 @@ public class CronRadarClientTests
     [Fact]
     public void Monitor_WithTooLongKey_DoesNotThrow()
     {
-        // Key validation: keys over 200 chars should be rejected silently
-        var longKey = new string('a', 201);
+        // Key validation: keys over 100 chars are skipped without throwing
+        var longKey = new string('a', 101);
         var exception = Record.Exception(() => CronRadarClient.Monitor(longKey));
         Assert.Null(exception);
     }
@@ -67,8 +67,8 @@ public class CronRadarClientTests
     [Fact]
     public void Monitor_WithExactlyMaxLengthKey_DoesNotThrow()
     {
-        // Key validation: 200 char key should be valid
-        var maxKey = new string('a', 200);
+        // Key validation: a 100 char key is valid
+        var maxKey = new string('a', 100);
         var exception = Record.Exception(() => CronRadarClient.Monitor(maxKey));
         Assert.Null(exception);
     }

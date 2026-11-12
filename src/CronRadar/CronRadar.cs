@@ -93,7 +93,8 @@ namespace CronRadar
             }
             if (monitorKey.Length > CronRadarConstants.MaxMonitorKeyLength)
             {
-                LogError($"Monitor key '{monitorKey}' exceeds maximum length of {CronRadarConstants.MaxMonitorKeyLength} characters");
+                // Shown without debug logging: the job is otherwise silently unmonitored.
+                Console.Error.WriteLine($"[CronRadar Error] Monitor key '{monitorKey}' is {monitorKey.Length} characters, over the maximum of {CronRadarConstants.MaxMonitorKeyLength}; this call is skipped.");
                 return false;
             }
             return true;
